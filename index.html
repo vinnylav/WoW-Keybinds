@@ -262,7 +262,7 @@ input[type=text], select, textarea {
 details.manual { border-top: 1px solid rgba(255,255,255,.1); padding-top: 8px; }
 details.manual summary { cursor: pointer; font: 600 15px var(--f-fantasy); color: #d9c79a; }
 .lbl-sm { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.guide li .g-act { grid-column: 3; grid-row: 1 / span 2; align-self: center; flex-wrap: nowrap; }
+.guide li .g-act { grid-column: 2 / -1; grid-row: auto; margin-top: 4px; }
 pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
 </style>
 </head>
@@ -634,7 +634,7 @@ function render() {
 function guideHTML() {
   if (ui.guide === "hidden") return "";
   const steps = [
-    ["Bring in your bars", "Import your Edit Mode layout and keybinds from WoW. Using the default bars and keys? Skip this step.", !!ui.barsDone, "bars", `<button class="small primary" data-act="edit-import">Import from WoW</button><button class="small ghost" data-act="keep-default">Skip</button>`],
+    ["Pick your starting layout", "Import your Edit Mode layout and keybinds from WoW, or start from the default Blizzard UI.", !!ui.barsDone, "bars", `<button class="small primary" data-act="edit-import">Import Layout from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI Layout</button>`],
     ["Paint your zones", "On the Zones tab, add zones (Builders, Interrupt, Defensives…) and click or drag across the buttons each one should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
     ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
     ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free button of that zone, and you can drag it around.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
@@ -669,10 +669,10 @@ function barsSideHTML() {
   const nb = Object.keys(state.binds).length;
   return `
   <div style="display:grid;gap:8px">
-    <h2>Import from WoW</h2>
-    <p class="hint">Bring in your Edit Mode bars and your keybinds in one go.</p>
-    <div class="row"><button class="primary" data-act="edit-import">Import from WoW</button></div>
-    <p class="hint">Playing on the default bars? You're already set. The Blizzard default is loaded.</p>
+    <h2>Starting layout</h2>
+    <p class="hint">Bring in your Edit Mode bars and keybinds, or use the default Blizzard UI.</p>
+    <div class="row"><button class="primary" data-act="edit-import">Import Layout from WoW</button></div>
+    <div class="row"><button data-act="keep-default">Use Default Blizzard UI Layout</button></div>
   </div>
   <div style="display:grid;gap:8px">
     <h2>Keybinds</h2>
@@ -941,7 +941,7 @@ main.addEventListener("click", async e => {
   const t = e.target;
   const act = t.closest("[data-act]")?.dataset.act;
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
-  if (act === "keep-default") { ui.barsDone = true; saveUI(); render(); return; }
+  if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
   const go = t.closest("[data-goto]");
   if (go) { ui.tab = go.dataset.goto; ui.sel = ui.editing = null; saveUI(); render(); return; }
