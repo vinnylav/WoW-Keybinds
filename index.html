@@ -398,8 +398,10 @@ const PRESETS = {
     binds: () => ({}),
   },
 };
+const STARTER_ZONES = [["Builders", "#2bb3a3"], ["Spenders", "#d08a2c"], ["Offense", "#c43d8f"], ["Defense", "#3a6fd1"], ["Interrupt", "#9b59d6"]];
+const starterZones = () => STARTER_ZONES.map(([name, color]) => ({ id: uid(), name, color }));
 function blankState() {
-  return { v: 2, bars: PRESETS.default.bars(), binds: PRESETS.default.binds(), zones: [], cells: {}, classes: [] };
+  return { v: 2, bars: PRESETS.default.bars(), binds: PRESETS.default.binds(), zones: starterZones(), cells: {}, classes: [] };
 }
 
 let state;
@@ -635,7 +637,7 @@ function guideHTML() {
   if (ui.guide === "hidden") return "";
   const steps = [
     ["Pick your starting layout", "Import your Edit Mode layout and keybinds from WoW, or start from the default Blizzard UI.", !!ui.barsDone, "bars", `<button class="small primary" data-act="edit-import">Import Layout from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI Layout</button>`],
-    ["Paint your zones", "On the Zones tab, add zones (Builders, Interrupt, Defensives…) and click or drag across the buttons each one should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
+    ["Paint your zones", "On the Zones tab, pick a zone (Builders, Spenders, Offense, Defense and Interrupt are ready to go, and you can add your own) and click or drag across the buttons it should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
     ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
     ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free button of that zone, and you can drag it around.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
     ["Compare and back up", "The Compare tab lines every class up on the same bars. Export JSON to keep a backup or share your layout.", !!ui.exported, "overview"],
@@ -725,7 +727,7 @@ function renderZones() {
   <aside class="side" id="side">
     <div style="display:grid;gap:8px">
       <h2>Zones</h2>
-      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, then paint it onto the buttons.</p>`}</div>
+      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, or start with the usual five.</p><div class="row"><button class="small" data-act="starter-zones">Add Builders, Spenders, Offense, Defense, Interrupt</button></div>`}</div>
       <div class="row">
         <button data-act="add-zone">+ Add zone</button>
         <button class="pick ${ui.brush === "" ? "primary" : ""}" data-brush="">Eraser</button>
@@ -964,6 +966,7 @@ main.addEventListener("click", async e => {
   if (ui.tab === "zones") {
     const brush = t.closest("[data-brush]");
     if (brush) { ui.brush = brush.dataset.brush; render(); return; }
+    if (act === "starter-zones") { state.zones.push(...starterZones()); ui.brush = state.zones[0].id; save(); render(); return; }
     if (act === "add-zone") {
       const hue = Math.floor(Math.random() * 360);
       const z = { id: uid(), name: "New zone", color: hslHex(hue, 55, 48) };
