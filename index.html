@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keybind Atlas</title>
+<meta name="description" content="Define keybind zones once, then slot each class's abilities into them so every class keeps the same layout.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky header with tabs; main = action-bar grid (left) + context panel (right), stacking on narrow screens. */
+:root {
+  --bg: #111318;
+  --panel: #191c22;
+  --panel-2: #20242c;
+  --cell: #262a33;
+  --line: #333946;
+  --fg: #e8e4da;
+  --muted: #8d929c;
+  --accent: #e2b24c;
+  --danger: #e0565b;
+  --ok: #6cc28a;
+  --f-fantasy: "Cinzel", Georgia, "Times New Roman", serif;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 6px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 14px/1.45 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+  min-height: 100vh;
+}
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 6px 10px; cursor: pointer; white-space: nowrap;
+}
+button:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .cell:focus-visible, .ab:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+button.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; }
+button.danger { color: var(--danger); }
+button.small { padding: 3px 8px; font-size: 12px; }
+input[type=text], select, textarea {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; min-width: 0;
+}
+textarea { width: 100%; font-family: var(--f-mono); font-size: 12px; }
+input[type=color] { width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: var(--r); background: none; cursor: pointer; flex: none; }
+label.inline { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; }
+
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding-block: 12px;
+}
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 24px; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+.brand span { color: var(--accent); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.tab {
+  font-family: var(--f-display); font-size: 16px; font-weight: 600; letter-spacing: .03em;
+  background: transparent; border: 1px solid transparent; padding: 4px 10px;
+}
+.tab[aria-selected=true] { background: var(--panel-2); border-color: var(--line); color: var(--accent); }
+.tab .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.hdr-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.status { font-size: 12px; color: var(--muted); }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 24px; padding-block: 20px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+.main-col { min-width: 0; display: grid; gap: 14px; }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; color: var(--fg); display: grid; gap: 14px; min-width: 0; }
+.side h2, .main-col h2 { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .06em; font-size: 15px; color: var(--muted); margin: 0; font-weight: 600; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; max-width: 62ch; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > input[type=text] { flex: 1 1 120px; }
+.guide { background: color-mix(in srgb, var(--accent) 9%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+.guide ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; counter-reset: g; }
+.guide li { counter-increment: g; display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 2px 10px; align-items: start; color: var(--muted); }
+.guide li::before { content: counter(g); grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font: 600 12px var(--f-mono); }
+.guide li b { color: var(--fg); font-weight: 600; }
+.guide li span { grid-column: 2; font-size: 13px; }
+.guide li button { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+.guide li.now::before { border-color: var(--accent); color: var(--accent); }
+.guide li.now b { color: var(--accent); }
+.guide li.done::before { content: "✓"; background: var(--ok); border-color: var(--ok); color: #0d1a12; }
+.guide li.done b { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--muted); }
+.banner { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 8px; padding: 10px 12px; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.banner p { margin: 0; flex: 1 1 240px; }
+
+/* ---- the bar grid ---- */
+.grid-wrap { overflow-x: auto; }
+.grid {
+  --cols: 9;
+  display: grid; grid-template-columns: repeat(var(--cols), minmax(36px, 1fr));
+  gap: 3px; max-width: 720px; position: relative; padding: 6px;
+  background: #0b0c0f; border: 1px solid var(--line); border-radius: 8px;
+  user-select: none;
+}
+.grid.painting { touch-action: none; cursor: crosshair; }
+.cell {
+  --z: transparent;
+  position: relative; aspect-ratio: 1; border-radius: 4px;
+  background: var(--cell);
+  border: 1px solid #000;
+  overflow: hidden; cursor: pointer; padding: 0;
+}
+.cell.zoned { background: color-mix(in srgb, var(--z) 42%, var(--cell)); }
+.cell.zb-t { box-shadow: inset 0 2px 0 var(--z); }
+.cell .edges { position: absolute; inset: 0; pointer-events: none; border-radius: 3px; }
+.cell .key {
+  position: absolute; top: 2px; right: 3px; z-index: 2;
+  font: 500 10px/1 var(--f-mono); color: #f2efe6; text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.cell .ab-tile { position: absolute; inset: 0; display: grid; place-items: center; }
+.cell .ab-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ab-text { padding: 2px; text-align: center; line-height: 1.05; }
+.ab-text b { display: block; font: 700 clamp(13px, 2.2vw, 20px)/1 var(--f-display); letter-spacing: .02em; color: #fff; text-shadow: 0 1px 2px #000; }
+.ab-text small { display: block; font-size: 9px; color: #e6e2d8; opacity: .85; margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+@media (max-width: 560px) { .ab-text small { display: none; } }
+.cell.target::after { content: ""; position: absolute; inset: 0; border: 2px dashed var(--accent); border-radius: 4px; pointer-events: none; }
+.cell.target.free::after { border-style: solid; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.cell.sel { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 3; }
+.cell.mismatch .warn {
+  position: absolute; left: 2px; bottom: 2px; z-index: 2; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--danger); color: #fff; font: 700 10px/14px var(--f-body); text-align: center;
+}
+.cell.dragover { outline: 2px solid var(--ok); outline-offset: -2px; }
+.zlabels { position: absolute; inset: 6px; pointer-events: none; }
+.zlabel {
+  position: absolute; transform: translate(-50%, -50%);
+  font: 700 clamp(12px, 2vw, 18px)/1.02 var(--f-display); text-align: center; color: #fff;
+  text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px #000; letter-spacing: .02em; max-width: 30%;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+
+/* ---- side lists ---- */
+.zone-list, .ab-groups { display: grid; gap: 6px; }
+.zone-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--r); border: 1px solid transparent; }
+.zone-row.active { border-color: var(--accent); background: var(--panel-2); }
+.zone-row input[type=text] { flex: 1; }
+.zone-row .count { font: 500 11px var(--f-mono); color: var(--muted); width: 2.5em; text-align: right; flex: none; }
+.zone-row .pick { padding: 4px 8px; }
+.zgroup { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 4px; }
+.zgroup-h { display: flex; align-items: center; gap: 6px; font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: .03em; }
+.zgroup-h .cap { margin-left: auto; font: 500 11px var(--f-mono); color: var(--muted); }
+.zgroup-h .cap.full { color: var(--danger); }
+.ab {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  padding: 3px 4px; border-radius: var(--r); cursor: grab; border: 1px solid transparent; background: none; text-align: left; width: 100%;
+}
+.ab:hover { background: var(--panel-2); }
+.ab.sel { border-color: var(--accent); background: var(--panel-2); }
+.ab .thumb { width: 30px; height: 30px; border-radius: 4px; overflow: hidden; display: grid; place-items: center; background: var(--cell); font: 700 13px var(--f-display); color: #fff; }
+.ab .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab .slot { font: 500 11px var(--f-mono); color: var(--muted); }
+.ab .slot.un { color: var(--accent); }
+.ab .slot.bad { color: var(--danger); }
+.editor { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; margin: 2px 0 6px; }
+.editor .lbl { font-size: 12px; color: var(--muted); }
+.icon-drop { border: 1px dashed var(--line); border-radius: var(--r); padding: 8px; font-size: 12px; color: var(--muted); text-align: center; }
+.icon-drop.over { border-color: var(--accent); color: var(--fg); }
+
+/* ---- overview ---- */
+.ov { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ov-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; cursor: pointer; text-align: left; }
+.ov-card:hover { border-color: var(--accent); }
+.ov-card h3 { margin: 0; font: 700 18px var(--f-display); letter-spacing: .03em; }
+.ov-card .meta { font-size: 12px; color: var(--muted); }
+.ov-card .grid { padding: 3px; gap: 2px; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+.ov-card .cell .key { display: none; }
+.ov-card .ab-text b { font-size: 11px; }
+.ov-card .ab-text small { display: none; }
+.zmatrix { overflow-x: auto; }
+.zmatrix table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.zmatrix th, .zmatrix td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.zmatrix th { font-family: var(--f-display); font-size: 14px; letter-spacing: .03em; white-space: nowrap; }
+.zmatrix td .k { font-family: var(--f-mono); color: var(--muted); margin-right: 4px; }
+
+dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; width: min(640px, calc(100vw - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog h2 { margin: 0 0 8px; font-family: var(--f-display); text-transform: uppercase; letter-spacing: .05em; font-size: 18px; }
+.toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; z-index: 20; font-size: 13px; }
+/* ---- Frames from warcraftcn/ui (MIT, see assets/wc/LICENSE-warcraftcn.md) ---- */
+.brand, .side h2, .main-col h2, .guide h2, dialog h2, .zgroup-h, .ov-card h3 { font-family: var(--f-fantasy); }
+.brand { font-size: 22px; text-transform: none; letter-spacing: .04em; }
+.side h2, .main-col h2, .guide h2 { text-transform: none; letter-spacing: .04em; font-size: 15px; color: #d9c79a; }
+.zgroup-h { font-size: 13px; }
+.ov-card h3 { font-size: 16px; }
+button:not(.cell):not(.ab):not(.tab):not(.ov-card) {
+  border: 6px solid transparent; border-radius: 0;
+  border-image: url("assets/wc/tab-list.webp") 14 fill / 6px stretch;
+  background: none; color: #eadfc4; padding: 3px 10px; font-family: var(--f-fantasy); font-size: 12px; font-weight: 600; letter-spacing: .03em;
+}
+button:not(.cell):not(.ab):not(.tab):not(.ov-card):hover:not(:disabled) { filter: brightness(1.2); }
+button:not(.cell):not(.ab):not(.tab):not(.ov-card):active:not(:disabled) { filter: brightness(.8); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary:not(.cell) { border-image: url("assets/wc/button-bg-sm.webp") 16 fill / 6px stretch !important; color: #fff !important; }
+button.danger:not(.cell) { color: #ff9b9b !important; }
+button.ghost:not(.cell) { border-image: none !important; border-color: transparent; color: var(--muted) !important; }
+.tab { border: 0; border-radius: 0; background: url("assets/wc/tab-list.webp") center / 100% 100% no-repeat; padding: 8px 16px; font-family: var(--f-fantasy); font-size: 13px; color: #d8cba8; }
+.tab:hover { filter: brightness(1.2); }
+.tab[aria-selected=true] { background-image: url("assets/wc/tab-list-active.webp"); background-color: transparent; color: #fff3cf; }
+.side, .guide, .ov-card, dialog {
+  border: 22px solid transparent; border-radius: 0;
+  border-image: url("assets/wc/card-bg.webp") 28 fill / 22px stretch;
+  background: none; padding: 4px;
+}
+.side { padding: 8px 10px; }
+@media (min-width: 861px) { .side { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow-y: auto; } }
+.ov-card:hover { border-color: transparent; filter: brightness(1.12); }
+input[type=text], select, textarea {
+  border: 6px solid transparent; border-radius: 0;
+  border-image: url("assets/wc/input-frame.webp") 16 fill / 6px stretch;
+  background: none;
+}
+.editor { background: rgba(0,0,0,.35); }
+.zone-row.active, .ab.sel, .ab:hover { background: rgba(0,0,0,.3); }
+.grid { background: #07080a; box-shadow: 0 0 0 2px #3a3122, 0 0 0 4px #0a0a0a; }
+@media (prefers-reduced-motion: no-preference) { .cell, .ab { transition: background-color .12s, border-color .12s; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="brand">Keybind <span>Atlas</span></h1>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
+  <div class="hdr-actions">
+    <span class="status" id="status"></span>
+    <button id="btnHelp" class="small ghost" aria-label="Show getting started guide">Guide</button>
+    <button id="btnExport" class="small">Export JSON</button>
+    <button id="btnImport" class="small">Import</button>
+  </div>
+</header>
+<main id="main"></main>
+
+<dialog id="dlgImport">
+  <h2>Import layout</h2>
+  <p class="hint">Pick an exported <code>.json</code> file or paste its contents. This replaces everything currently in the planner.</p>
+  <div class="row" style="margin:10px 0"><input type="file" id="importFile" accept="application/json,.json"></div>
+  <textarea id="importText" rows="10" placeholder='{"v":1, "zones": [...], ...}'></textarea>
+  <p class="hint" id="importErr" style="color:var(--danger)"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="importCancel" class="ghost">Cancel</button>
+    <button id="importGo" class="primary">Replace my layout</button>
+  </div>
+</dialog>
+<dialog id="dlgConfirm">
+  <h2 id="confirmTitle">Are you sure?</h2>
+  <p class="hint" id="confirmText"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:12px">
+    <button id="confirmNo" class="ghost">Cancel</button>
+    <button id="confirmYes" class="primary">Confirm</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+/* ============================================================
+   Data model
+   state = {
+     v: 1,
+     keys: [["1","2",...], ...]           rows of key labels; cell id = "r-c"
+     zones: [{id, name, color}],
+     cells: { "r-c": zoneId },            which zone each slot belongs to
+     classes: [{id, name, color, abilities: [{id, name, zone, cell, icon}]}]
+   }
+   icon = wowhead icon name (e.g. spell_holy_avenginewrath), an https URL, or a data: URI.
+   ============================================================ */
+const STORE_KEY = "keybind-atlas:v1";
+const UI_KEY = "keybind-atlas:ui";
+const uid = () => Math.random().toString(36).slice(2, 9);
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function starterState() {
+  const keys = [
+    ["1", "2", "3", "s-1", "s-2", "s-3", "c-1", "c-2", "c-3"],
+    ["4", "Q", "E", "s-4", "s-Q", "s-E", "c-4", "c-Q", "c-E"],
+    ["R", "F", "V", "s-R", "s-F", "s-V", "c-R", "c-F", "c-V"],
+    ["Z", "X", "C", "s-Z", "s-X", "s-C", "c-Z", "c-X", "c-C"],
+  ];
+  const Z = (id, name, color, cells) => ({ id, name, color, cells });
+  const zdefs = [
+    Z("builders", "Builders", "#2bb3a3", ["0-0", "0-1", "0-2", "1-0"]),
+    Z("offcd", "Offensive Cooldown", "#c43d8f", ["0-3", "0-4", "0-5", "1-3"]),
+    Z("party", "Party", "#8c8a3c", ["0-6", "0-7", "0-8"]),
+    Z("util", "Util", "#3552c8", ["1-1", "1-2"]),
+    Z("defcd", "Defensive Cooldowns", "#b8344c", ["1-4", "1-5"]),
+    Z("raid", "Raid", "#3f9b4c", ["1-6", "1-7", "1-8", "2-6", "2-7", "2-8"]),
+    Z("aoe", "AOE", "#2a3a92", ["2-0"]),
+    Z("taunt", "Taunt", "#cdbb27", ["2-1"]),
+    Z("offgcd", "Off Cd", "#56648f", ["2-2"]),
+    Z("heals", "Heals", "#a8424e", ["2-3", "2-4", "2-5"]),
+    Z("travel", "Travel", "#c99a35", ["3-0", "3-6", "3-7", "3-8"]),
+    Z("int", "INT", "#9aa1ab", ["3-2"]),
+    Z("intstun", "INT Stun", "#7c8aa2", ["3-3", "3-4", "3-5"]),
+  ];
+  const cells = {};
+  zdefs.forEach(z => z.cells.forEach(c => cells[c] = z.id));
+  const zones = zdefs.map(({ id, name, color }) => ({ id, name, color }));
+  const A = (name, zone, cell, icon = "") => ({ id: uid(), name, zone, cell, icon });
+  const paladin = {
+    id: uid(), name: "Paladin (example)", color: "#f48cba", abilities: [
+      A("Crusader Strike", "builders", "0-0", "spell_holy_crusaderstrike"),
+      A("Blade of Justice", "builders", "0-1", "ability_paladin_bladeofjustice"),
+      A("Judgment", "builders", "0-2", "spell_holy_righteousfury"),
+      A("Hammer of Wrath", "builders", "1-0", "spell_paladin_hammerofwrath"),
+      A("Avenging Wrath", "offcd", "0-3", "spell_holy_avenginewrath"),
+      A("Divine Toll", "offcd", "0-4", "ability_bastion_paladin"),
+      A("Wake of Ashes", "offcd", "0-5", "ability_paladin_wakeofashes"),
+      A("Blessing of Sacrifice", "party", "0-6", "spell_holy_sealofsacrifice"),
+      A("Blessing of Freedom", "util", "1-1", "spell_holy_sealofvalor"),
+      A("Blessing of Protection", "util", "1-2", "spell_holy_sealofprotection"),
+      A("Shield of Vengeance", "defcd", "1-4", "ability_paladin_shieldofthetemplar"),
+      A("Divine Shield", "defcd", "1-5", "spell_holy_divineshield"),
+      A("Divine Storm", "aoe", "2-0", "ability_paladin_divinestorm"),
+      A("Hand of Reckoning", "taunt", "2-1", "spell_holy_unyieldingfaith"),
+      A("Templar's Verdict", "offgcd", "2-2", "spell_paladin_templarsverdict"),
+      A("Word of Glory", "heals", "2-3", "inv_helmet_96"),
+      A("Flash of Light", "heals", "2-4", "spell_holy_flashheal"),
+      A("Lay on Hands", "heals", "2-5", "spell_holy_layonhands"),
+      A("Divine Steed", "travel", "3-0", "ability_paladin_divinesteed"),
+      A("Rebuke", "int", "3-2", "spell_holy_rebuke"),
+      A("Hammer of Justice", "intstun", "3-3", "spell_holy_sealofmight"),
+      A("Blinding Light", "intstun", "3-4", "ability_paladin_blindinglight"),
+      A("Intercession", "raid", null, ""),
+    ]
+  };
+  const monk = {
+    id: uid(), name: "Monk (example)", color: "#00ff98", abilities: [
+      A("Tiger Palm", "builders", "0-0", "ability_monk_tigerpalm"),
+      A("Rising Sun Kick", "builders", "0-1", "ability_monk_risingsunkick"),
+      A("Blackout Kick", "builders", "0-2", "ability_monk_roundhousekick"),
+      A("Invoke Xuen", "offcd", "0-3", "ability_monk_summontigerstatue"),
+      A("Touch of Karma", "defcd", "1-4", "ability_monk_touchofkarma"),
+      A("Spinning Crane Kick", "aoe", "2-0", "ability_monk_cranekick_new"),
+      A("Provoke", "taunt", "2-1", "ability_monk_provoke"),
+      A("Vivify", "heals", "2-3", "ability_monk_vivify"),
+      A("Roll", "travel", "3-0", "ability_monk_roll"),
+      A("Spear Hand Strike", "int", "3-2", "ability_monk_spearhand"),
+      A("Leg Sweep", "intstun", "3-3", "ability_monk_legsweep"),
+      A("Paralysis", "intstun", null, "ability_monk_paralysis"),
+    ]
+  };
+  return { v: 1, keys, zones, cells, classes: [paladin, monk] };
+}
+
+function blankState() {
+  return { v: 1, keys: starterState().keys, zones: [], cells: {}, classes: [] };
+}
+
+let state;
+let ui = { tab: "zones", brush: null, sel: null, editing: null, labels: true, labelsClass: false };
+
+/* ---------------- persistence ---------------- */
+function loadLocal() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return normalize(JSON.parse(raw)); } catch (e) {}
+  return null;
+}
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  setStatus("Saving…");
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); setStatus("Saved in this browser"); }
+    catch (e) { setStatus("Couldn't save in this browser. Export to keep your work."); }
+  }, 250);
+}
+window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported })); } catch (e) {} }
+function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
+function setStatus(t) { $("#status").textContent = t; }
+
+function normalize(s) {
+  if (!s || !Array.isArray(s.keys) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (missing keys or zones).");
+  s.v = 1;
+  s.cells = s.cells || {};
+  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "" })) }));
+  return s;
+}
+
+/* ---------------- helpers ---------------- */
+const rows = () => state.keys.length;
+const cols = () => Math.max(...state.keys.map(r => r.length));
+const keyOf = id => { const [r, c] = id.split("-").map(Number); return (state.keys[r] || [])[c] ?? "?"; };
+const zoneById = id => state.zones.find(z => z.id === id);
+const curClass = () => state.classes.find(c => c.id === ui.tab);
+const allCells = () => { const out = []; for (let r = 0; r < rows(); r++) for (let c = 0; c < (state.keys[r] || []).length; c++) out.push(r + "-" + c); return out; };
+const zoneCells = zid => allCells().filter(id => state.cells[id] === zid);
+const initials = n => { const w = String(n).replace(/[^\p{L}\p{N} ]/gu, "").split(/\s+/).filter(Boolean); if (!w.length) return "?"; return (w.length === 1 ? w[0].slice(0, 2) : w.slice(0, 3).map(x => x[0]).join("")).toUpperCase(); };
+function iconSrc(icon) {
+  if (!icon) return "";
+  if (/^(https?:|data:)/.test(icon)) return icon;
+  return "https://wow.zamimg.com/images/wow/icons/large/" + encodeURIComponent(icon.toLowerCase().replace(/\.jpg$/, "").trim()) + ".jpg";
+}
+const mismatched = a => a.cell && a.zone && state.cells[a.cell] !== a.zone;
+function toast(t) {
+  const el = document.createElement("div"); el.className = "toast"; el.textContent = t; el.setAttribute("role", "status");
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2200);
+}
+function confirmBox(title, text, yesLabel = "Confirm") {
+  return new Promise(res => {
+    const d = $("#dlgConfirm"); $("#confirmTitle").textContent = title; $("#confirmText").textContent = text; $("#confirmYes").textContent = yesLabel;
+    const done = v => { d.close(); $("#confirmYes").onclick = $("#confirmNo").onclick = null; res(v); };
+    $("#confirmYes").onclick = () => done(true); $("#confirmNo").onclick = () => done(false);
+    d.showModal();
+  });
+}
+function tileHTML(a) {
+  const src = iconSrc(a.icon);
+  const txt = `<div class="ab-text"><b>${esc(initials(a.name))}</b><small>${esc(a.name)}</small></div>`;
+  if (!src) return txt;
+  return `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">`;
+}
+// Replace broken icon images with the text tile.
+document.addEventListener("error", e => {
+  const img = e.target;
+  if (img.tagName === "IMG" && img.dataset.fallback) {
+    const name = img.closest("[data-name]")?.dataset.name || "";
+    const div = document.createElement("div"); div.className = img.closest(".thumb") ? "" : "ab-text";
+    div.innerHTML = img.closest(".thumb") ? esc(initials(name)) : `<b>${esc(initials(name))}</b><small>${esc(name)}</small>`;
+    img.replaceWith(div);
+  }
+}, true);
+
+/* ---------------- grid rendering ---------------- */
+function gridHTML({ cls = null, mini = false, showLabels = false, sel = null }) {
+  const C = cols();
+  const selAb = cls && sel ? cls.abilities.find(a => a.id === sel) : null;
+  const byCell = {};
+  if (cls) cls.abilities.forEach(a => { if (a.cell) byCell[a.cell] = a; });
+  let h = `<div class="grid${mini ? " mini" : ""}" style="--cols:${C}" data-grid>`;
+  for (let r = 0; r < rows(); r++) for (let c = 0; c < C; c++) {
+    const id = r + "-" + c; const k = (state.keys[r] || [])[c];
+    if (k === undefined) { h += `<div></div>`; continue; }
+    const z = zoneById(state.cells[id]);
+    const a = byCell[id];
+    const cl = ["cell"];
+    if (z) cl.push("zoned");
+    if (a && mismatched(a)) cl.push("mismatch");
+    if (selAb && selAb.zone && state.cells[id] === selAb.zone) { cl.push("target"); if (!a) cl.push("free"); }
+    if (a && a.id === sel) cl.push("sel");
+    // zone edge lines: draw a bright edge where the neighbor is a different zone
+    let sh = [];
+    if (z) {
+      const nb = (rr, cc) => state.cells[rr + "-" + cc];
+      if (nb(r - 1, c) !== z.id) sh.push("inset 0 2px 0 var(--z)");
+      if (nb(r + 1, c) !== z.id) sh.push("inset 0 -2px 0 var(--z)");
+      if (nb(r, c - 1) !== z.id) sh.push("inset 2px 0 0 var(--z)");
+      if (nb(r, c + 1) !== z.id) sh.push("inset -2px 0 0 var(--z)");
+    }
+    const title = `${k}${z ? " · " + z.name : ""}${a ? " · " + a.name : ""}${a && mismatched(a) ? " (belongs in " + (zoneById(a.zone)?.name || "?") + ")" : ""}`;
+    h += `<button class="${cl.join(" ")}" data-cell="${id}" ${a ? `data-ab="${a.id}" data-name="${esc(a.name)}" draggable="${mini ? "false" : "true"}"` : ""} style="--z:${z ? z.color : "transparent"}" title="${esc(title)}" ${mini ? 'tabindex="-1"' : ""}>`;
+    if (a) h += `<div class="ab-tile">${tileHTML(a)}</div>`;
+    if (sh.length) h += `<div class="edges" style="box-shadow:${sh.join(",")}"></div>`;
+    h += `<span class="key">${esc(k)}</span>`;
+    if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong zone">!</span>`;
+    h += `</button>`;
+  }
+  if (showLabels) h += `<div class="zlabels">${zoneLabels()}</div>`;
+  return h + `</div>`;
+}
+// One label per connected patch of a zone, centered on the patch.
+function zoneLabels() {
+  const R = rows(), C = cols(); const seen = new Set(); let out = "";
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const id = r + "-" + c, zid = state.cells[id];
+    if (!zid || seen.has(id)) continue;
+    const comp = []; const stack = [[r, c]]; seen.add(id);
+    while (stack.length) {
+      const [y, x] = stack.pop(); comp.push([y, x]);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dy, dx]) => { const n = (y + dy) + "-" + (x + dx); if (!seen.has(n) && state.cells[n] === zid) { seen.add(n); stack.push([y + dy, x + dx]); } });
+    }
+    const z = zoneById(zid); if (!z) continue;
+    const minR = Math.min(...comp.map(p => p[0])), maxR = Math.max(...comp.map(p => p[0]));
+    const minC = Math.min(...comp.map(p => p[1])), maxC = Math.max(...comp.map(p => p[1]));
+    const cy = ((minR + maxR + 1) / 2) / R * 100, cx = ((minC + maxC + 1) / 2) / C * 100;
+    const w = Math.max(1, maxC - minC + 1) / C * 100;
+    out += `<span class="zlabel" style="left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / C) - 1}%">${esc(z.name)}</span>`;
+  }
+  return out;
+}
+
+/* ---------------- tabs ---------------- */
+function renderTabs() {
+  const t = [`<button class="tab" role="tab" aria-selected="${ui.tab === "zones"}" data-tab="zones">Zones</button>`];
+  state.classes.forEach(c => t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === c.id}" data-tab="${c.id}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`));
+  t.push(`<button class="tab" data-act="add-class" title="Add a class or spec">+ Class</button>`);
+  t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === "overview"}" data-tab="overview">Compare</button>`);
+  $("#tabs").innerHTML = t.join("");
+}
+$("#tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.act === "add-class") return addClass();
+  ui.tab = b.dataset.tab; ui.sel = null; ui.editing = null; saveUI(); render();
+});
+function addClass(from = null) {
+  const c = from
+    ? { ...JSON.parse(JSON.stringify(from)), id: uid(), name: from.name + " copy" }
+    : { id: uid(), name: "New class", color: "#c7c3b8", abilities: [] };
+  if (from) c.abilities.forEach(a => a.id = uid());
+  state.classes.push(c); ui.tab = c.id; ui.editing = null; save(); render();
+  setTimeout(() => { const i = $("#className"); if (i) { i.focus(); i.select(); } }, 0);
+}
+
+/* ---------------- main render ---------------- */
+function render() {
+  if (ui.tab !== "zones" && ui.tab !== "overview" && !curClass()) ui.tab = "zones";
+  renderTabs();
+  if (ui.tab === "zones") renderZones();
+  else if (ui.tab === "overview") renderOverview();
+  else renderClass();
+}
+function starterBanner() {
+  if (ui.guide === "hidden") return "";
+  const steps = [
+    ["Paint your zones", "On the Zones tab, add a zone (Builders, Interrupt, Defensives…) and click or drag across the keys it should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
+    ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
+    ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free key of that zone, and you can drag it around inside.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
+    ["Compare and back up", "The Compare tab lines every class up on the same map. Export JSON to keep a backup or share your layout.", !!ui.exported, "overview"],
+  ];
+  const next = steps.findIndex(s => !s[2]);
+  return `<div class="guide" role="region" aria-label="Getting started">
+    <div class="row" style="justify-content:space-between">
+      <h2>Getting started</h2>
+      <div class="row">
+        ${state.classes.length || state.zones.length ? "" : `<button class="small" data-act="load-example">Load an example layout</button>`}
+        <button class="small ghost" data-act="hide-guide">${next === -1 ? "Done" : "Hide"}</button>
+      </div>
+    </div>
+    <p class="hint">Everything saves in this browser only. Nothing is uploaded.</p>
+    <ol>${steps.map((s, i) => `<li class="${s[2] ? "done" : i === next ? "now" : ""}"><b>${s[0]}</b><span>${s[1]}</span>${i === next && s[3] && ui.tab !== s[3] ? `<button class="small" data-goto="${s[3]}">Go</button>` : ""}</li>`).join("")}</ol>
+  </div>`;
+}
+
+/* ===== Zones view ===== */
+function renderZones() {
+  if (ui.brush === null && state.zones[0]) ui.brush = state.zones[0].id;
+  const m = $("#main");
+  m.innerHTML = `
+  <section class="main-col">
+    ${starterBanner()}
+    <h2>Zone map</h2>
+    <p class="hint">Pick a zone on the right, then click or drag across slots to paint it. Dragging from a slot that already has that zone erases instead. Every class uses this same map.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
+    <div class="row"><label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Show zone names</label></div>
+  </section>
+  <aside class="side">
+    <div style="display:grid;gap:8px">
+      <h2>Zones</h2>
+      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, then paint it onto the keys.</p>`}</div>
+      <div class="row">
+        <button data-act="add-zone">+ Add zone</button>
+        <button class="pick ${ui.brush === "" ? "primary" : ""}" data-brush="">Eraser</button>
+      </div>
+    </div>
+    <div style="display:grid;gap:8px">
+      <h2>Keys</h2>
+      <p class="hint">One row per line, keys separated by spaces. Zones and abilities stay attached to the slot position, so renaming a key keeps everything in place.</p>
+      <textarea id="keysText" rows="${Math.max(4, rows() + 1)}" spellcheck="false">${esc(state.keys.map(r => r.join(" ")).join("\n"))}</textarea>
+      <div class="row"><button id="applyKeys">Apply keys</button></div>
+    </div>
+  </aside>`;
+  $("#grid" + "Wrap").querySelector("[data-grid]").classList.add("painting");
+}
+function zoneListHTML() {
+  return state.zones.map(z => {
+    const n = zoneCells(z.id).length;
+    return `<div class="zone-row ${ui.brush === z.id ? "active" : ""}" data-zone="${z.id}">
+      <input type="color" value="${esc(z.color)}" data-zcolor="${z.id}" aria-label="${esc(z.name)} color">
+      <input type="text" value="${esc(z.name)}" data-zname="${z.id}" aria-label="Zone name">
+      <span class="count" title="Slots">${n}</span>
+      <button class="small pick ${ui.brush === z.id ? "primary" : ""}" data-brush="${z.id}">Paint</button>
+      <button class="small ghost danger" data-delzone="${z.id}" aria-label="Delete ${esc(z.name)}">✕</button>
+    </div>`;
+  }).join("");
+}
+function refreshZoneGrid() {
+  const w = $("#gridWrap"); if (!w) return;
+  w.innerHTML = gridHTML({ showLabels: ui.labels });
+  w.querySelector("[data-grid]").classList.add("painting");
+}
+
+/* ===== Class view ===== */
+function renderClass() {
+  const cls = curClass();
+  const m = $("#main");
+  const unplaced = cls.abilities.filter(a => !a.cell).length;
+  const bad = cls.abilities.filter(mismatched).length;
+  m.innerHTML = `
+  <section class="main-col">
+    ${starterBanner()}
+    <div class="row" style="justify-content:space-between">
+      <h2>${esc(cls.name)} bars</h2>
+      <div class="row">
+        <label class="inline"><input type="checkbox" id="chkLabelsC" ${ui.labelsClass ? "checked" : ""}> Zone names</label>
+        <button class="small" data-act="autoplace" ${unplaced ? "" : "disabled"}>Auto-place ${unplaced ? "(" + unplaced + ")" : ""}</button>
+      </div>
+    </div>
+    <p class="hint">Select an ability, then click a slot to move it there (it swaps if the slot is taken). Its zone lights up. You can also drag abilities between slots or from the list. Click an empty slot to add an ability there.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass })}</div>
+    ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
+    <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
+  </section>
+  <aside class="side" id="side">${classSideHTML(cls)}</aside>`;
+}
+function classSideHTML(cls) {
+  const zopts = sel => `<option value="">No zone</option>` + state.zones.map(z => `<option value="${z.id}" ${sel === z.id ? "selected" : ""}>${esc(z.name)}</option>`).join("");
+  let h = `
+  <div style="display:grid;gap:8px">
+    <h2>Class</h2>
+    <div class="row"><input type="color" id="classColor" value="${esc(cls.color)}" aria-label="Class color"><input type="text" id="className" value="${esc(cls.name)}" aria-label="Class name"></div>
+    <div class="row"><button class="small" data-act="dup-class">Duplicate</button><button class="small danger" data-act="del-class">Delete class</button></div>
+  </div>
+  <form id="addAb" style="display:grid;gap:6px">
+    <h2>Add ability</h2>
+    <div class="row"><input type="text" id="newAbName" placeholder="Ability name" aria-label="Ability name" required></div>
+    <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone || "")}</select><button class="primary" type="submit">Add</button></div>
+    <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
+  </form>
+  <div style="display:grid;gap:8px">
+    <h2>Abilities by zone</h2>
+    <div class="ab-groups" id="abGroups">`;
+  const groups = state.zones.map(z => ({ z, list: cls.abilities.filter(a => a.zone === z.id) }));
+  groups.push({ z: { id: "", name: "No zone", color: "#555" }, list: cls.abilities.filter(a => !a.zone || !zoneById(a.zone)) });
+  groups.forEach(({ z, list }) => {
+    if (!list.length && !z.id) return;
+    const cap = z.id ? zoneCells(z.id).length : 0;
+    h += `<div class="zgroup" data-dropzone="${z.id}"><div class="zgroup-h"><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}${z.id ? `<span class="cap ${list.length > cap ? "full" : ""}" title="Abilities / slots">${list.length}/${cap}</span>` : ""}</div>`;
+    list.forEach(a => {
+      const slotTxt = a.cell ? keyOf(a.cell) : "unplaced";
+      const src = iconSrc(a.icon);
+      h += `<button class="ab ${ui.sel === a.id ? "sel" : ""}" data-ab="${a.id}" data-name="${esc(a.name)}" draggable="true">
+        <span class="thumb" style="background:${esc(z.color)}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name))}</span>
+        <span class="nm">${esc(a.name)}</span>
+        <span class="slot ${!a.cell ? "un" : mismatched(a) ? "bad" : ""}">${esc(slotTxt)}</span>
+        <span class="small ghost" data-edit="${a.id}" role="button" tabindex="0" aria-label="Edit ${esc(a.name)}" style="padding:2px 6px;color:var(--muted)">Edit</span>
+      </button>`;
+      if (ui.editing === a.id) h += editorHTML(a, zopts);
+    });
+    h += `</div>`;
+  });
+  return h + `</div></div>`;
+}
+function editorHTML(a, zopts) {
+  return `<div class="editor" data-editor="${a.id}">
+    <span class="lbl">Name</span><input type="text" data-f="name" value="${esc(a.name)}">
+    <span class="lbl">Zone</span><select data-f="zone">${zopts(a.zone)}</select>
+    <span class="lbl">Icon: wowhead icon name (e.g. spell_holy_avenginewrath), an image URL, or drop / paste an image below</span>
+    <input type="text" data-f="icon" value="${esc(a.icon && a.icon.startsWith("data:") ? "(uploaded image)" : a.icon)}" spellcheck="false">
+    <div class="icon-drop" data-drop="${a.id}" tabindex="0">Drop an image here, or click here and paste (Ctrl+V). <label style="color:var(--accent);cursor:pointer">Browse<input type="file" accept="image/*" data-file="${a.id}" hidden></label></div>
+    <div class="row">
+      <button class="small" data-act="unplace" data-id="${a.id}" ${a.cell ? "" : "disabled"}>Remove from bar</button>
+      <button class="small danger" data-act="del-ab" data-id="${a.id}">Delete</button>
+      <button class="small primary" data-act="close-edit" style="margin-left:auto">Done</button>
+    </div>
+  </div>`;
+}
+function refreshClass(keepSide = false) {
+  const cls = curClass(); if (!cls) return render();
+  if (keepSide) {
+    $("#gridWrap").innerHTML = gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass });
+  } else {
+    const y = $("#side")?.scrollTop; renderClass();
+  }
+}
+
+/* ===== Overview ===== */
+function renderOverview() {
+  const m = $("#main");
+  let cards = state.classes.map(c => {
+    const placed = c.abilities.filter(a => a.cell).length;
+    const bad = c.abilities.filter(mismatched).length;
+    return `<div class="ov-card" data-open="${c.id}" role="button" tabindex="0">
+      <div class="row" style="justify-content:space-between"><h3><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(c.color)};margin-right:6px"></span>${esc(c.name)}</h3>
+      <span class="meta">${placed}/${c.abilities.length} placed${bad ? ` · <span style="color:var(--danger)">${bad} off-zone</span>` : ""}</span></div>
+      ${gridHTML({ cls: c, mini: true })}
+    </div>`;
+  }).join("");
+  let table = `<table><thead><tr><th>Zone</th>${state.classes.map(c => `<th>${esc(c.name)}</th>`).join("")}</tr></thead><tbody>`;
+  state.zones.forEach(z => {
+    const ids = zoneCells(z.id);
+    table += `<tr><th><i class="sw" style="background:${esc(z.color)};margin-right:6px"></i>${esc(z.name)}</th>`;
+    state.classes.forEach(c => {
+      const list = c.abilities.filter(a => a.zone === z.id).sort((a, b) => (a.cell ? ids.indexOf(a.cell) : 99) - (b.cell ? ids.indexOf(b.cell) : 99));
+      table += `<td>${list.map(a => `<div><span class="k">${a.cell ? esc(keyOf(a.cell)) : "—"}</span>${esc(a.name)}</div>`).join("") || `<span style="color:var(--muted)">·</span>`}</td>`;
+    });
+    table += `</tr>`;
+  });
+  table += `</tbody></table>`;
+  m.innerHTML = `<section class="main-col" style="grid-column:1/-1">
+    ${starterBanner()}
+    <h2>All classes</h2>
+    <p class="hint">Same zone map, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
+    <div class="ov">${cards || `<p class="hint">No classes yet. Use + Class to add one.</p>`}</div>
+    <h2 style="margin-top:12px">By zone</h2>
+    <div class="zmatrix">${table}</div>
+  </section>`;
+}
+
+/* ---------------- interactions ---------------- */
+const main = $("#main");
+let paint = null; // {mode:'set'|'erase', zone}
+function paintCell(btn) {
+  const id = btn?.dataset?.cell; if (!id || !paint) return;
+  const want = paint.mode === "erase" ? undefined : paint.zone;
+  if (state.cells[id] === want) return;
+  if (want === undefined) delete state.cells[id]; else state.cells[id] = want;
+  refreshZoneGrid();
+}
+main.addEventListener("pointerdown", e => {
+  if (ui.tab !== "zones") return;
+  const btn = e.target.closest(".cell"); if (!btn) return;
+  e.preventDefault();
+  const id = btn.dataset.cell;
+  if (ui.brush === "" || ui.brush == null) paint = { mode: "erase" };
+  else paint = { mode: state.cells[id] === ui.brush ? "erase" : "set", zone: ui.brush };
+  paintCell(btn);
+});
+window.addEventListener("pointermove", e => {
+  if (!paint) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  paintCell(el?.closest?.(".cell"));
+});
+window.addEventListener("pointerup", () => {
+  if (!paint) return; paint = null; save();
+  const zl = $("#zoneList"); if (zl) zl.innerHTML = zoneListHTML();
+});
+
+main.addEventListener("click", async e => {
+  const t = e.target;
+  const act = t.closest("[data-act]")?.dataset.act;
+  // shared actions
+  if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
+  if (act === "load-example") { state = starterState(); ui.tab = "zones"; ui.brush = null; save(); render(); toast("Example layout loaded. Edit or delete anything."); return; }
+  const go = t.closest("[data-goto]");
+  if (go) { ui.tab = go.dataset.goto; ui.sel = ui.editing = null; saveUI(); render(); return; }
+  if (ui.tab === "zones") {
+    const brush = t.closest("[data-brush]");
+    if (brush) { ui.brush = brush.dataset.brush; render(); return; }
+    if (act === "add-zone") {
+      const hue = Math.floor(Math.random() * 360);
+      const z = { id: uid(), name: "New zone", color: hslHex(hue, 55, 48) };
+      state.zones.push(z); ui.brush = z.id; save(); render();
+      setTimeout(() => { const i = $(`[data-zname="${z.id}"]`); i?.focus(); i?.select(); }, 0);
+      return;
+    }
+    const dz = t.closest("[data-delzone]");
+    if (dz) {
+      const z = zoneById(dz.dataset.delzone);
+      const n = state.classes.reduce((s, c) => s + c.abilities.filter(a => a.zone === z.id).length, 0);
+      if (!await confirmBox(`Delete "${z.name}"?`, `Its ${zoneCells(z.id).length} slots become unzoned${n ? ` and ${n} abilities lose their zone tag (they stay on the bars)` : ""}.`, "Delete zone")) return;
+      state.zones = state.zones.filter(x => x.id !== z.id);
+      for (const k in state.cells) if (state.cells[k] === z.id) delete state.cells[k];
+      state.classes.forEach(c => c.abilities.forEach(a => { if (a.zone === z.id) a.zone = null; }));
+      if (ui.brush === z.id) ui.brush = null;
+      save(); render(); return;
+    }
+    if (t.id === "applyKeys") {
+      const lines = $("#keysText").value.split("\n").map(l => l.trim()).filter(Boolean).map(l => l.split(/\s+/));
+      if (!lines.length) return toast("Add at least one row of keys.");
+      state.keys = lines;
+      const valid = new Set(allCells());
+      for (const k in state.cells) if (!valid.has(k)) delete state.cells[k];
+      let dropped = 0;
+      state.classes.forEach(c => c.abilities.forEach(a => { if (a.cell && !valid.has(a.cell)) { a.cell = null; dropped++; } }));
+      save(); render(); toast(dropped ? `Keys updated. ${dropped} abilities moved off the bar.` : "Keys updated.");
+      return;
+    }
+    return;
+  }
+  if (ui.tab === "overview") {
+    const card = t.closest("[data-open]"); if (card) { ui.tab = card.dataset.open; saveUI(); render(); }
+    return;
+  }
+  // class view
+  const cls = curClass(); if (!cls) return;
+  if (act === "autoplace") {
+    let n = 0;
+    cls.abilities.filter(a => !a.cell && a.zone).forEach(a => {
+      const free = zoneCells(a.zone).find(id => !cls.abilities.some(b => b.cell === id));
+      if (free) { a.cell = free; n++; }
+    });
+    save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free slots in those zones. Paint more slots on the Zones tab."); return;
+  }
+  if (act === "dup-class") return addClass(cls);
+  if (act === "del-class") {
+    if (!await confirmBox(`Delete ${cls.name}?`, `This removes the class and its ${cls.abilities.length} abilities. Export first if you might want it back.`, "Delete class")) return;
+    state.classes = state.classes.filter(c => c !== cls); ui.tab = "zones"; save(); render(); return;
+  }
+  if (act === "close-edit") { ui.editing = null; refreshClass(); return; }
+  if (act === "unplace") { const a = cls.abilities.find(x => x.id === t.closest("[data-id]").dataset.id); a.cell = null; save(); refreshClass(); return; }
+  if (act === "del-ab") { cls.abilities = cls.abilities.filter(x => x.id !== t.closest("[data-id]").dataset.id); ui.editing = null; ui.sel = null; save(); refreshClass(); return; }
+  const editBtn = t.closest("[data-edit]");
+  if (editBtn) { ui.editing = ui.editing === editBtn.dataset.edit ? null : editBtn.dataset.edit; ui.sel = editBtn.dataset.edit; refreshClass(); return; }
+  if (t.closest(".editor")) return;
+  const cell = t.closest(".cell");
+  if (cell) return onCellClick(cls, cell.dataset.cell);
+  const ab = t.closest(".ab");
+  if (ab) { ui.sel = ui.sel === ab.dataset.ab ? null : ab.dataset.ab; refreshClass(); return; }
+});
+function onCellClick(cls, cellId) {
+  const occupant = cls.abilities.find(a => a.cell === cellId);
+  if (ui.sel) {
+    const a = cls.abilities.find(x => x.id === ui.sel);
+    if (a && occupant && occupant.id === a.id) { ui.sel = null; return refreshClass(); }
+    if (a) { moveTo(cls, a, cellId); ui.sel = null; save(); return refreshClass(); }
+  }
+  if (occupant) { ui.sel = occupant.id; return refreshClass(); }
+  // empty cell, nothing selected: start adding an ability into this slot
+  ui.addCell = cellId; ui.addZone = state.cells[cellId] || "";
+  refreshClass();
+  const n = $("#newAbName"); n?.focus(); n.placeholder = `Ability for ${keyOf(cellId)}`;
+}
+function moveTo(cls, a, cellId) {
+  const occupant = cls.abilities.find(x => x.cell === cellId);
+  if (occupant && occupant !== a) occupant.cell = a.cell || null;
+  a.cell = cellId;
+}
+main.addEventListener("submit", e => {
+  if (e.target.id !== "addAb") return;
+  e.preventDefault();
+  const cls = curClass(); const name = $("#newAbName").value.trim(); if (!name) return;
+  const zone = $("#newAbZone").value || null;
+  const a = { id: uid(), name, zone, cell: null, icon: $("#newAbIcon").value.trim() };
+  const taken = id => cls.abilities.some(b => b.cell === id);
+  if (ui.addCell && !taken(ui.addCell)) a.cell = ui.addCell;
+  else if (zone) a.cell = zoneCells(zone).find(id => !taken(id)) || null;
+  cls.abilities.push(a);
+  ui.addCell = null; ui.addZone = zone || "";
+  save(); refreshClass();
+  toast(a.cell ? `${name} → ${keyOf(a.cell)}` : `${name} added (no free slot in that zone)`);
+  setTimeout(() => $("#newAbName")?.focus(), 0);
+});
+main.addEventListener("input", e => {
+  const t = e.target;
+  if (ui.tab === "zones") {
+    if (t.dataset.zname) { zoneById(t.dataset.zname).name = t.value; save(); refreshZoneGrid(); }
+    if (t.dataset.zcolor) { zoneById(t.dataset.zcolor).color = t.value; save(); refreshZoneGrid(); }
+    return;
+  }
+  const cls = curClass(); if (!cls) return;
+  if (t.id === "className") { cls.name = t.value; save(); renderTabs(); return; }
+  if (t.id === "classColor") { cls.color = t.value; save(); renderTabs(); return; }
+  const ed = t.closest("[data-editor]");
+  if (ed && t.dataset.f) {
+    const a = cls.abilities.find(x => x.id === ed.dataset.editor);
+    if (t.dataset.f === "name") { a.name = t.value; save(); refreshClass(true); }
+    if (t.dataset.f === "icon") { if (t.value !== "(uploaded image)") { a.icon = t.value.trim(); save(); refreshClass(true); } }
+  }
+});
+main.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); refreshZoneGrid(); return; }
+  if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
+  if (ui.tab === "zones" && t.dataset.zname) return;
+  const cls = curClass(); if (!cls) return;
+  if (t.id === "className") return;
+  if (t.id === "newAbZone") { ui.addZone = t.value; return; }
+  const ed = t.closest("[data-editor]");
+  if (ed && t.dataset.f === "zone") { cls.abilities.find(x => x.id === ed.dataset.editor).zone = t.value || null; save(); refreshClass(); return; }
+  if (ed && (t.dataset.f === "name" || t.dataset.f === "icon")) {
+    const a = cls.abilities.find(x => x.id === ed.dataset.editor); const item = main.querySelector(`.ab[data-ab="${a.id}"]`);
+    if (item) { item.dataset.name = a.name; item.querySelector(".nm").textContent = a.name; const src = iconSrc(a.icon); item.querySelector(".thumb").innerHTML = src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name)); }
+    return;
+  }
+  if (t.dataset.file) { const f = t.files[0]; if (f) setIconFromFile(cls, t.dataset.file, f); }
+});
+// keyboard: Enter/Space on Edit spans, Escape to deselect
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && (ui.sel || ui.editing) && !document.querySelector("dialog[open]")) { ui.sel = null; ui.editing = null; ui.addCell = null; if (curClass()) refreshClass(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.edit) { e.preventDefault(); e.target.click(); }
+  if ((e.key === "Enter") && e.target.dataset?.open) e.target.click();
+});
+
+/* drag & drop (desktop) */
+let dragId = null;
+main.addEventListener("dragstart", e => {
+  const el = e.target.closest("[data-ab]"); if (!el || ui.tab === "zones" || ui.tab === "overview") return;
+  dragId = el.dataset.ab; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId);
+  ui.sel = dragId; setTimeout(() => refreshClass(true), 0);
+});
+main.addEventListener("dragover", e => {
+  if (!dragId) return;
+  const c = e.target.closest(".cell, .zgroup"); if (!c) return;
+  e.preventDefault(); main.querySelectorAll(".dragover").forEach(x => x.classList.remove("dragover")); if (c.classList.contains("cell")) c.classList.add("dragover");
+});
+main.addEventListener("drop", e => {
+  if (!dragId) return;
+  const cls = curClass(); const a = cls?.abilities.find(x => x.id === dragId); dragId = null;
+  if (!a) return;
+  e.preventDefault();
+  const cell = e.target.closest(".cell");
+  if (cell) moveTo(cls, a, cell.dataset.cell);
+  else if (e.target.closest(".zgroup")) a.cell = null; // drop on list = take off bar
+  ui.sel = null; save(); refreshClass();
+});
+main.addEventListener("dragend", () => { if (dragId) { dragId = null; ui.sel = null; refreshClass(true); } });
+
+/* icon images: drop / paste / browse -> 56px data URI */
+main.addEventListener("dragover", e => { const d = e.target.closest("[data-drop]"); if (d && e.dataTransfer.types.includes("Files")) { e.preventDefault(); d.classList.add("over"); } });
+main.addEventListener("dragleave", e => { const d = e.target.closest("[data-drop]"); d?.classList.remove("over"); });
+main.addEventListener("drop", e => {
+  const d = e.target.closest("[data-drop]"); if (!d) return;
+  const f = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith("image/"));
+  if (f) { e.preventDefault(); setIconFromFile(curClass(), d.dataset.drop, f); }
+});
+document.addEventListener("paste", e => {
+  const d = document.activeElement?.closest?.("[data-drop]") || (ui.editing && document.activeElement?.closest?.("[data-editor]"));
+  if (!d) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+  if (!item) return;
+  e.preventDefault(); setIconFromFile(curClass(), ui.editing, item.getAsFile());
+});
+function setIconFromFile(cls, abId, file) {
+  const a = cls?.abilities.find(x => x.id === abId); if (!a || !file) return;
+  const url = URL.createObjectURL(file); const img = new Image();
+  img.onload = () => {
+    const S = 56, cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const s = Math.min(img.width, img.height), sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+    cv.getContext("2d").drawImage(img, sx, sy, s, s, 0, 0, S, S);
+    a.icon = cv.toDataURL("image/jpeg", 0.85); URL.revokeObjectURL(url); save(); refreshClass();
+  };
+  img.onerror = () => toast("That file isn't an image the browser can read.");
+  img.src = url;
+}
+function hslHex(h, s, l) {
+  s /= 100; l /= 100; const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))).toString(16).padStart(2, "0");
+  return "#" + f(0) + f(8) + f(4);
+}
+
+/* ---------------- export / import ---------------- */
+$("#btnExport").onclick = () => {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "layout.json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  ui.exported = true; saveUI(); if (ui.guide !== "hidden") render();
+  toast("Exported layout.json");
+};
+$("#btnHelp").onclick = () => { ui.guide = ""; saveUI(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+$("#btnImport").onclick = () => { $("#importErr").textContent = ""; $("#importText").value = ""; $("#importFile").value = ""; $("#dlgImport").showModal(); };
+$("#importCancel").onclick = () => $("#dlgImport").close();
+$("#importFile").onchange = async e => { const f = e.target.files[0]; if (f) $("#importText").value = await f.text(); };
+$("#importGo").onclick = () => {
+  try {
+    const s = normalize(JSON.parse($("#importText").value));
+    state = s; ui.tab = "zones"; ui.sel = ui.editing = null; save(); render(); $("#dlgImport").close(); toast("Layout imported.");
+  } catch (err) { $("#importErr").textContent = err instanceof SyntaxError ? "That isn't valid JSON. Paste the whole exported file." : err.message; }
+};
+
+/* ---------------- boot ---------------- */
+(function boot() {
+  loadUI();
+  let local = null; try { local = loadLocal(); } catch (e) {}
+  if (local) { state = local; setStatus("Saved in this browser"); }
+  else { state = blankState(); setStatus("Nothing saved yet"); }
+  render();
+})();
+</script>
+</body>
+</html>
