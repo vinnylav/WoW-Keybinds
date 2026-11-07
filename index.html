@@ -368,7 +368,7 @@ const BAR_NAME = n => "Action Bar " + n;
 function bar(n, show, orient, lines, x, y, icons = 12) { return { n, show, orient, lines, icons, x, y }; }
 const PRESETS = {
   default: {
-    name: "Default UI",
+    name: "Blizzard default UI",
     note: "Bar 1 at the bottom with bars 2 and 3 stacked above it, bars 4 and 5 vertical on the right. Bar 1 keeps the default 1 to = keys.",
     bars: () => [
       bar(1, true, "h", 1, 0, 11), bar(2, true, "h", 1, 0, 10), bar(3, true, "h", 1, 0, 9),
@@ -682,7 +682,8 @@ function barsSideHTML() {
   <div style="display:grid;gap:8px">
     <h2>Bar layout</h2>
     <div class="row"><button class="primary small" data-act="edit-import">Import Edit Mode layout</button></div>
-    <div class="row"><select id="presetSel" style="flex:1" aria-label="Preset">${Object.entries(PRESETS).map(([k, p]) => opt(k, ui.preset || "default", esc(p.name))).join("")}</select><button class="small" data-act="preset">Apply</button></div>
+    <div class="row"><select id="presetSel" style="flex:1" aria-label="Preset">${Object.entries(PRESETS).map(([k, p]) => opt(k, ui.preset || "default", esc(p.name) + (k === "default" ? " (recommended)" : ""))).join("")}</select><button class="small" data-act="preset">Apply</button></div>
+    <div class="row"><button class="small ghost" data-act="preset-default">Reset to Blizzard default</button></div>
     <p class="hint" id="presetNote">${esc(PRESETS[ui.preset || "default"].note)}</p>
   </div>
   <div style="display:grid;gap:2px">
@@ -943,8 +944,8 @@ main.addEventListener("click", async e => {
       if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your zones and abilities stay where they are.", "Clear keybinds")) return;
       state.binds = {}; save(); renderBars(); return;
     }
-    if (act === "preset") {
-      const p = PRESETS[$("#presetSel").value];
+    if (act === "preset" || act === "preset-default") {
+      const p = PRESETS[act === "preset-default" ? "default" : $("#presetSel").value];
       if (!await confirmBox(`Use "${p.name}"?`, "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Apply preset")) return;
       state.bars = p.bars(); state.binds = p.binds(); ui.barsDone = true; saveUI(); save(); renderBars(); return;
     }
