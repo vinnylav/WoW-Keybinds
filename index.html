@@ -251,12 +251,18 @@ input[type=text], select, textarea {
 @keyframes pulse { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .cell.capture { animation: none; } }
 .blabel { position: absolute; transform: translate(-50%, -50%); pointer-events: none; font: 700 11px var(--f-fantasy); color: #fff3cf; background: rgba(0,0,0,.7); padding: 0 5px; border-radius: 3px; white-space: nowrap; opacity: .85; }
-.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(30px, 54px)); grid-template-rows: repeat(var(--rows), auto); width: max-content; max-width: none; }
+.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(28px, min(54px, calc(500px / var(--rows))))); grid-template-rows: repeat(var(--rows), auto); width: max-content; max-width: none; }
 .grid-wrap { max-width: 100%; }
 .grid.fit { width: 100%; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); max-width: calc(var(--cols) * 40px); min-width: 0; }
 .grid .cell { width: 100%; }
 .capture-bar { background: rgba(0,0,0,.35); border: 1px solid var(--accent); padding: 8px 10px; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .capture-bar p { margin: 0; flex: 1 1 200px; }
+.dlg-step { font: 600 15px var(--f-fantasy); color: #d9c79a; margin: 14px 0 2px; }
+.dlg-step span { font: 400 12px var(--f-body); color: var(--muted); margin-left: 6px; }
+details.manual { border-top: 1px solid rgba(255,255,255,.1); padding-top: 8px; }
+details.manual summary { cursor: pointer; font: 600 15px var(--f-fantasy); color: #d9c79a; }
+.lbl-sm { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.guide li .g-act { grid-column: 3; grid-row: 1 / span 2; align-self: center; flex-wrap: nowrap; }
 pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
 </style>
 </head>
@@ -285,26 +291,13 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
-<dialog id="dlgWow">
-  <h2>Import keybinds from WoW</h2>
-  <p class="hint">WoW keeps your keybinds in a file called <code>bindings-cache.wtf</code>. Log out of the game first so it writes the latest version, then pick it here. It is usually in one of these places:</p>
-  <pre class="macro" style="margin:8px 0">World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\bindings-cache.wtf
-World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\&lt;Realm&gt;\&lt;Character&gt;\bindings-cache.wtf</pre>
-  <p class="hint">Use the character one if you turned on character-specific keybindings. Only action bar keybinds are read.</p>
-  <div class="row" style="margin:10px 0"><input type="file" id="wowFile" accept=".wtf,text/plain"></div>
-  <textarea id="wowText" rows="6" placeholder="bind 1 ACTIONBUTTON1&#10;bind SHIFT-Q MULTIACTIONBAR1BUTTON5"></textarea>
-  <p class="hint" id="wowMsg"></p>
-  <div class="row" style="justify-content:flex-end; margin-top:8px">
-    <button id="wowCancel" class="ghost">Cancel</button>
-    <button id="wowGo" class="primary">Use these keybinds</button>
-  </div>
-</dialog>
-
 <dialog id="dlgEdit">
-  <h2>Import an Edit Mode layout</h2>
-  <p class="hint">In WoW, open Edit Mode (Esc, then Edit Mode), pick your layout, click the gear next to it and choose Copy to Clipboard / Share. Paste the text here. Only the action bars are read: their shape, size and where they sit relative to each other.</p>
-  <textarea id="editText" rows="6" placeholder="5 0 59 0 0 0 2 0 MultiBarBottomLeft -4.0 0.0 -1 ##$'%/&amp;('%)$+$,# 0 1 0 4 4 UIParent …"></textarea>
-  <div class="row" style="margin-top:8px">
+  <h2>Import from WoW</h2>
+  <p class="hint">Fill in either part or both. Anything you leave empty stays as it is.</p>
+  <h3 class="dlg-step">1. Your bars <span>from Edit Mode</span></h3>
+  <p class="hint">In WoW press Esc, open Edit Mode, pick your layout, click the gear next to it and choose Share / Copy to Clipboard. Paste it here.</p>
+  <textarea id="editText" rows="4" placeholder="5 0 59 0 0 0 2 0 MultiBarBottomLeft -4.0 0.0 -1 ##$'%/&amp;('%)$+$,# 0 1 0 4 4 UIParent …"></textarea>
+  <div class="row" style="margin-top:6px">
     <label class="inline" for="editScreen">Your screen</label>
     <select id="editScreen">
       <option value="1920x1080">1920 × 1080</option>
@@ -314,9 +307,14 @@ World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\&lt;Realm&gt;\&lt;Charact
     </select>
   </div>
   <p class="hint" id="editMsg"></p>
+  <h3 class="dlg-step">2. Your keybinds <span>from bindings-cache.wtf</span></h3>
+  <p class="hint">Log out of WoW so it saves the latest file, then pick it. It's in <code>World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\</code>, or one level deeper under <code>&lt;Realm&gt;\&lt;Character&gt;\</code> if you use character-specific keybinds.</p>
+  <div class="row" style="margin:6px 0"><input type="file" id="wowFile" accept=".wtf,text/plain"></div>
+  <textarea id="wowText" rows="3" placeholder="…or paste the file's contents: bind 1 ACTIONBUTTON1"></textarea>
+  <p class="hint" id="wowMsg"></p>
   <div class="row" style="justify-content:flex-end; margin-top:8px">
     <button id="editCancel" class="ghost">Cancel</button>
-    <button id="editGo" class="primary">Use these bars</button>
+    <button id="editGo" class="primary">Import</button>
   </div>
 </dialog>
 
@@ -636,7 +634,7 @@ function render() {
 function guideHTML() {
   if (ui.guide === "hidden") return "";
   const steps = [
-    ["Match your action bars", "On the Bars tab, import your Edit Mode layout (or pick a preset / shape bars by hand), then import your keybinds from WoW or click a button and press its key.", !!ui.barsDone, "bars"],
+    ["Bring in your bars", "Import your Edit Mode layout and keybinds from WoW. Using the default bars and keys? Skip this step.", !!ui.barsDone, "bars", `<button class="small primary" data-act="edit-import">Import from WoW</button><button class="small ghost" data-act="keep-default">Skip</button>`],
     ["Paint your zones", "On the Zones tab, add zones (Builders, Interrupt, Defensives…) and click or drag across the buttons each one should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
     ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
     ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free button of that zone, and you can drag it around.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
@@ -649,7 +647,7 @@ function guideHTML() {
       <button class="small ghost" data-act="hide-guide">${next === -1 ? "Done" : "Hide"}</button>
     </div>
     <p class="hint">Everything saves in this browser only. Nothing is uploaded.</p>
-    <ol>${steps.map((s, i) => `<li class="${s[2] ? "done" : i === next ? "now" : ""}"><b>${s[0]}</b><span>${s[1]}</span>${i === next && s[3] && ui.tab !== s[3] ? `<button class="small" data-goto="${s[3]}">Go</button>` : ""}</li>`).join("")}</ol>
+    <ol>${steps.map((s, i) => `<li class="${s[2] ? "done" : i === next ? "now" : ""}"><b>${s[0]}</b><span>${s[1]}</span>${i === next && s[4] ? `<div class="row g-act">${s[4]}</div>` : i === next && s[3] && ui.tab !== s[3] ? `<button class="small" data-goto="${s[3]}">Go</button>` : ""}</li>`).join("")}</ol>
   </div>`;
 }
 
@@ -660,7 +658,7 @@ function renderBars() {
   <section class="main-col">
     ${guideHTML()}
     <h2>Your action bars</h2>
-    <p class="hint">Import your Edit Mode layout, or shape each bar on the right and drag bars around to match your screen. Click a button to set its key.</p>
+    <p class="hint">These are your action bars. Zones and abilities go on these buttons in the next steps.</p>
     ${capBar}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
   </section>
@@ -671,34 +669,46 @@ function barsSideHTML() {
   const nb = Object.keys(state.binds).length;
   return `
   <div style="display:grid;gap:8px">
-    <h2>Keybinds</h2>
-    <p class="hint">${nb} button${nb === 1 ? "" : "s"} have a key.</p>
-    <div class="row">
-      <button class="primary small" data-act="wow-import">Import keybinds from WoW</button>
-      <button class="small" data-act="wow-export" ${nb ? "" : "disabled"}>Send to WoW</button>
-      <button class="small ghost danger" data-act="binds-clear" ${nb ? "" : "disabled"}>Clear all</button>
-    </div>
+    <h2>Import from WoW</h2>
+    <p class="hint">Bring in your Edit Mode bars and your keybinds in one go.</p>
+    <div class="row"><button class="primary" data-act="edit-import">Import from WoW</button></div>
+    <p class="hint">Playing on the default bars? You're already set. The Blizzard default is loaded.</p>
   </div>
   <div style="display:grid;gap:8px">
-    <h2>Bar layout</h2>
-    <div class="row"><button class="primary small" data-act="edit-import">Import Edit Mode layout</button></div>
-    <div class="row"><select id="presetSel" style="flex:1" aria-label="Preset">${Object.entries(PRESETS).map(([k, p]) => opt(k, ui.preset || "default", esc(p.name) + (k === "default" ? " (recommended)" : ""))).join("")}</select><button class="small" data-act="preset">Apply</button></div>
-    <div class="row"><button class="small ghost" data-act="preset-default">Reset to Blizzard default</button></div>
-    <p class="hint" id="presetNote">${esc(PRESETS[ui.preset || "default"].note)}</p>
+    <h2>Keybinds</h2>
+    <div class="row" style="justify-content:space-between">
+      <span class="hint">${nb} button${nb === 1 ? " has" : "s have"} a key.</span>
+      <button class="small" data-act="wow-export" ${nb ? "" : "disabled"} title="Get chat lines that apply these keys in game">Send to WoW</button>
+    </div>
   </div>
-  <div style="display:grid;gap:2px">
-    <h2>Bars</h2>
-    ${state.bars.map(b => `
-      <div class="bar-row ${b.show ? "" : "off"}" data-bar="${b.n}">
-        <label class="inline"><input type="checkbox" data-bf="show" ${b.show ? "checked" : ""}> <span class="bar-name">${BAR_NAME(b.n)}</span></label>
-        <span></span>
-        <div class="bar-opts">
-          <select data-bf="orient" aria-label="Orientation">${opt("h", b.orient, "Horizontal")}${opt("v", b.orient, "Vertical")}</select>
-          <select data-bf="lines" aria-label="${b.orient === "h" ? "Rows" : "Columns"}">${[1, 2, 3, 4, 6, 12].map(n => opt(n, b.lines, n + (b.orient === "h" ? (n === 1 ? " row" : " rows") : (n === 1 ? " col" : " cols")))).join("")}</select>
-          <select data-bf="icons" aria-label="Number of buttons">${[6, 7, 8, 9, 10, 11, 12].map(n => opt(n, b.icons, n + " buttons")).join("")}</select>
-        </div>
-      </div>`).join("")}
-  </div>`;
+  <details class="manual" id="manual" ${ui.manualOpen ? "open" : ""}>
+    <summary>Set up by hand</summary>
+    <div style="display:grid;gap:12px;margin-top:8px">
+      <p class="hint">Click any button on the grid and press a key to bind it. Drag a bar to move it.</p>
+      <div style="display:grid;gap:6px">
+        <span class="lbl-sm">Preset</span>
+        <div class="row"><select id="presetSel" style="flex:1" aria-label="Preset">${Object.entries(PRESETS).map(([k, p]) => opt(k, ui.preset || "default", esc(p.name) + (k === "default" ? " (recommended)" : ""))).join("")}</select><button class="small" data-act="preset">Apply</button></div>
+        <p class="hint" id="presetNote">${esc(PRESETS[ui.preset || "default"].note)}</p>
+      </div>
+      <div style="display:grid;gap:2px">
+        <span class="lbl-sm">Bars</span>
+        ${state.bars.map(b => `
+          <div class="bar-row ${b.show ? "" : "off"}" data-bar="${b.n}">
+            <label class="inline"><input type="checkbox" data-bf="show" ${b.show ? "checked" : ""}> <span class="bar-name">${BAR_NAME(b.n)}</span></label>
+            <span></span>
+            <div class="bar-opts">
+              <select data-bf="orient" aria-label="Orientation">${opt("h", b.orient, "Horizontal")}${opt("v", b.orient, "Vertical")}</select>
+              <select data-bf="lines" aria-label="${b.orient === "h" ? "Rows" : "Columns"}">${[1, 2, 3, 4, 6, 12].map(n => opt(n, b.lines, n + (b.orient === "h" ? (n === 1 ? " row" : " rows") : (n === 1 ? " col" : " cols")))).join("")}</select>
+              <select data-bf="icons" aria-label="Number of buttons">${[6, 7, 8, 9, 10, 11, 12].map(n => opt(n, b.icons, n + " buttons")).join("")}</select>
+            </div>
+          </div>`).join("")}
+      </div>
+      <div class="row">
+        <button class="small ghost" data-act="preset-default">Reset to Blizzard default</button>
+        <button class="small ghost danger" data-act="binds-clear" ${nb ? "" : "disabled"}>Clear all keybinds</button>
+      </div>
+    </div>
+  </details>`;
 }
 
 /* ===== Zones view ===== */
@@ -931,15 +941,15 @@ main.addEventListener("click", async e => {
   const t = e.target;
   const act = t.closest("[data-act]")?.dataset.act;
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
+  if (act === "keep-default") { ui.barsDone = true; saveUI(); render(); return; }
+  if (act === "edit-import") { openWowImport(); return; }
   const go = t.closest("[data-goto]");
   if (go) { ui.tab = go.dataset.goto; ui.sel = ui.editing = null; saveUI(); render(); return; }
 
   if (ui.tab === "bars") {
     if (act === "cap-cancel") { ui.capture = null; renderBars(); return; }
     if (act === "cap-clear") { setBind(ui.capture, null); return; }
-    if (act === "wow-import") { openWowImport(); return; }
     if (act === "wow-export") { openWowExport(); return; }
-    if (act === "edit-import") { $("#editText").value = ""; $("#editMsg").textContent = ""; $("#dlgEdit").showModal(); return; }
     if (act === "binds-clear") {
       if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your zones and abilities stay where they are.", "Clear keybinds")) return;
       state.binds = {}; save(); renderBars(); return;
@@ -1053,6 +1063,7 @@ main.addEventListener("input", e => {
     if (t.dataset.f === "icon" && t.value !== "(uploaded image)") { a.icon = t.value.trim(); save(); refreshClass(true); }
   }
 });
+main.addEventListener("toggle", e => { if (e.target.id === "manual") ui.manualOpen = e.target.open; }, true);
 main.addEventListener("change", e => {
   const t = e.target;
   if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); refreshZoneGrid(); return; }
@@ -1152,24 +1163,20 @@ function parseWtf(text) {
   });
   return { binds, total };
 }
-function openWowImport() { $("#wowText").value = ""; $("#wowFile").value = ""; $("#wowMsg").textContent = ""; $("#dlgWow").showModal(); }
-$("#wowCancel").onclick = () => $("#dlgWow").close();
+function openWowImport() {
+  ["#wowText", "#wowFile", "#editText"].forEach(id => $(id).value = "");
+  $("#wowMsg").textContent = ""; $("#editMsg").textContent = ""; $("#dlgEdit").showModal();
+}
 $("#wowFile").onchange = async e => { const f = e.target.files[0]; if (f) { $("#wowText").value = await f.text(); previewWow(); } };
 $("#wowText").oninput = () => previewWow();
 function previewWow() {
-  const { binds, total } = parseWtf($("#wowText").value);
+  const txt = $("#wowText").value.trim(); const m = $("#wowMsg");
+  if (!txt) { m.textContent = ""; return; }
+  const { binds, total } = parseWtf(txt);
   const bars = [...new Set(Object.keys(binds).map(k => +k.split("-")[0]))].sort((a, b) => a - b);
-  $("#wowMsg").style.color = total ? "var(--ok)" : "var(--muted)";
-  $("#wowMsg").textContent = total ? `Found ${total} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds found yet.";
+  m.style.color = total ? "var(--ok)" : "var(--danger)";
+  m.textContent = total ? `Found ${total} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds in that. Pick your bindings-cache.wtf file.";
 }
-$("#wowGo").onclick = () => {
-  const { binds, total } = parseWtf($("#wowText").value);
-  if (!total) { $("#wowMsg").style.color = "var(--danger)"; $("#wowMsg").textContent = "That text has no action bar keybinds. Pick your bindings-cache.wtf file."; return; }
-  state.binds = binds;
-  // show any bar that has keys
-  Object.keys(binds).forEach(k => { const b = state.bars.find(x => x.n === +k.split("-")[0]); if (b && !b.show) { b.show = true; } });
-  ui.barsDone = true; saveUI(); save(); $("#dlgWow").close(); render(); toast(`Imported ${total} keybinds.`);
-};
 // Export as /run lines that each fit WoW's 255-character chat limit.
 function wowLines() {
   const pairs = Object.entries(state.binds).map(([slot, key]) => { const [b, i] = slot.split("-"); return [key, BAR_CMD(+b) + i]; });
@@ -1263,20 +1270,35 @@ function editModeToBars(eb, W, H) {
 }
 $("#editCancel").onclick = () => $("#dlgEdit").close();
 $("#editText").oninput = () => {
-  const m = $("#editMsg");
+  const m = $("#editMsg"); const txt = $("#editText").value.trim();
+  if (!txt) { m.textContent = ""; return; }
   try {
-    const eb = parseEditMode($("#editText").value);
+    const eb = parseEditMode(txt);
     const shown = eb.filter(b => !b.hidden && (b.n === 1 || !b.def)).map(b => b.n);
     m.style.color = "var(--ok)";
-    m.textContent = `Found ${eb.length} action bars. Bars ${shown.join(", ")} will be shown (bars left in their default spot start hidden; turn them on afterwards if you use them).`;
-  } catch (err) { m.style.color = $("#editText").value.trim() ? "var(--danger)" : "var(--muted)"; m.textContent = $("#editText").value.trim() ? err.message : ""; }
+    m.textContent = `Found ${eb.length} action bars. Bars ${shown.join(", ")} will be shown. Bars still in their default spot start hidden; tick them on under "Set up by hand" if you use them.`;
+  } catch (err) { m.style.color = "var(--danger)"; m.textContent = err.message; }
 };
 $("#editGo").onclick = () => {
-  try {
-    const [W, H] = $("#editScreen").value.split("x").map(Number);
-    state.bars = editModeToBars(parseEditMode($("#editText").value), W, H);
-    ui.barsDone = true; saveUI(); save(); $("#dlgEdit").close(); render(); toast("Bars imported from Edit Mode.");
-  } catch (err) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = err.message; }
+  const layoutTxt = $("#editText").value.trim(), bindTxt = $("#wowText").value.trim();
+  if (!layoutTxt && !bindTxt) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = "Paste an Edit Mode layout, pick a keybinds file, or both."; return; }
+  let bars = null, binds = null;
+  if (layoutTxt) {
+    try { const [W, H] = $("#editScreen").value.split("x").map(Number); bars = editModeToBars(parseEditMode(layoutTxt), W, H); }
+    catch (err) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = err.message; return; }
+  }
+  if (bindTxt) {
+    const r = parseWtf(bindTxt);
+    if (!r.total) { previewWow(); return; }
+    binds = r.binds;
+  }
+  if (bars) state.bars = bars;
+  if (binds) {
+    state.binds = binds;
+    Object.keys(binds).forEach(k => { const b = state.bars.find(x => x.n === +k.split("-")[0]); if (b) b.show = true; });
+  }
+  ui.barsDone = true; saveUI(); save(); $("#dlgEdit").close(); render();
+  toast([bars && "Bars imported", binds && `${Object.keys(binds).length} keybinds imported`].filter(Boolean).join(" · ") + ".");
 };
 
 /* ---------------- JSON export / import ---------------- */
