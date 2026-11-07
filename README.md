@@ -2,9 +2,10 @@
 
 A small static page for planning WoW action bar keybinds so every class keeps the same muscle memory.
 
-1. **Zones**: paint named areas (Builders, Interrupt, Defensives…) onto the key grid once.
-2. **Classes**: add each class or spec and drop its abilities into those zones. Each ability remembers which zone it belongs in and gets flagged if it ends up outside it.
-3. **Compare**: see every class on the same map, plus a zone-by-zone table.
+1. **Bars**: match your real action bars. Import your Edit Mode layout string (or use a preset / shape bars by hand) and import your keybinds from `bindings-cache.wtf`, or click a button and press its key. "Send to WoW" gives you `/run` lines that apply the keybinds in game.
+1. **Zones**: paint named areas (Builders, Interrupt, Defensives…) onto those buttons once.
+1. **Classes**: add each class or spec and drop its abilities into those zones. Each ability remembers which zone it belongs in and gets flagged if it ends up outside it.
+1. **Compare**: see every class on the same map, plus a zone-by-zone table.
 
 Everything is saved in your own browser (localStorage). Use **Export JSON** to back up or share a layout and **Import** to load one.
 

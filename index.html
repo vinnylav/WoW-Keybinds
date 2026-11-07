@@ -231,6 +231,33 @@ input[type=text], select, textarea {
 .zone-row.active, .ab.sel, .ab:hover { background: rgba(0,0,0,.3); }
 .grid { background: #07080a; box-shadow: 0 0 0 2px #3a3122, 0 0 0 4px #0a0a0a; }
 @media (prefers-reduced-motion: no-preference) { .cell, .ab { transition: background-color .12s, border-color .12s; } }
+<style>
+/* ---- v2 additions ---- */
+.side { overflow-x: hidden; }
+.zone-row { gap: 6px; padding: 4px 2px; }
+.zone-row input[type=text] { flex: 1 1 0; width: 0; }
+.zone-row button { padding: 2px 6px !important; }
+.bar-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; padding: 6px 2px; border-top: 1px solid rgba(255,255,255,.08); }
+.bar-row:first-child { border-top: 0; }
+.bar-row .bar-name { font-family: var(--f-fantasy); font-weight: 600; font-size: 13px; color: #eadfc4; }
+.bar-row .bar-opts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.bar-row .bar-opts select { padding: 2px 4px; font-size: 12px; }
+.bar-row.off .bar-opts { display: none; }
+.bar-row.off .bar-name { color: var(--muted); }
+.grid.bars-mode .cell { cursor: grab; }
+.grid.bars-mode.dragging .cell { cursor: grabbing; }
+.cell.unbound .key { opacity: .35; }
+.cell.capture { outline: 2px solid var(--accent); outline-offset: -2px; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .cell.capture { animation: none; } }
+.blabel { position: absolute; transform: translate(-50%, -50%); pointer-events: none; font: 700 11px var(--f-fantasy); color: #fff3cf; background: rgba(0,0,0,.7); padding: 0 5px; border-radius: 3px; white-space: nowrap; opacity: .85; }
+.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(30px, 54px)); grid-template-rows: repeat(var(--rows), auto); width: max-content; max-width: none; }
+.grid-wrap { max-width: 100%; }
+.grid.fit { width: 100%; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); max-width: calc(var(--cols) * 40px); min-width: 0; }
+.grid .cell { width: 100%; }
+.capture-bar { background: rgba(0,0,0,.35); border: 1px solid var(--accent); padding: 8px 10px; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.capture-bar p { margin: 0; flex: 1 1 200px; }
+pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
 </style>
 </head>
 <body>
@@ -241,22 +268,68 @@ input[type=text], select, textarea {
     <span class="status" id="status"></span>
     <button id="btnHelp" class="small ghost" aria-label="Show getting started guide">Guide</button>
     <button id="btnExport" class="small">Export JSON</button>
-    <button id="btnImport" class="small">Import</button>
+    <button id="btnImport" class="small">Import JSON</button>
   </div>
 </header>
 <main id="main"></main>
 
 <dialog id="dlgImport">
   <h2>Import layout</h2>
-  <p class="hint">Pick an exported <code>.json</code> file or paste its contents. This replaces everything currently in the planner.</p>
+  <p class="hint">Pick a Keybind Atlas <code>.json</code> export or paste its contents. This replaces everything currently in the planner.</p>
   <div class="row" style="margin:10px 0"><input type="file" id="importFile" accept="application/json,.json"></div>
-  <textarea id="importText" rows="10" placeholder='{"v":1, "zones": [...], ...}'></textarea>
+  <textarea id="importText" rows="10" placeholder='{"v":2, "bars": [...], ...}'></textarea>
   <p class="hint" id="importErr" style="color:var(--danger)"></p>
   <div class="row" style="justify-content:flex-end; margin-top:8px">
     <button id="importCancel" class="ghost">Cancel</button>
     <button id="importGo" class="primary">Replace my layout</button>
   </div>
 </dialog>
+
+<dialog id="dlgWow">
+  <h2>Import keybinds from WoW</h2>
+  <p class="hint">WoW keeps your keybinds in a file called <code>bindings-cache.wtf</code>. Log out of the game first so it writes the latest version, then pick it here. It is usually in one of these places:</p>
+  <pre class="macro" style="margin:8px 0">World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\bindings-cache.wtf
+World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\&lt;Realm&gt;\&lt;Character&gt;\bindings-cache.wtf</pre>
+  <p class="hint">Use the character one if you turned on character-specific keybindings. Only action bar keybinds are read.</p>
+  <div class="row" style="margin:10px 0"><input type="file" id="wowFile" accept=".wtf,text/plain"></div>
+  <textarea id="wowText" rows="6" placeholder="bind 1 ACTIONBUTTON1&#10;bind SHIFT-Q MULTIACTIONBAR1BUTTON5"></textarea>
+  <p class="hint" id="wowMsg"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="wowCancel" class="ghost">Cancel</button>
+    <button id="wowGo" class="primary">Use these keybinds</button>
+  </div>
+</dialog>
+
+<dialog id="dlgEdit">
+  <h2>Import an Edit Mode layout</h2>
+  <p class="hint">In WoW, open Edit Mode (Esc, then Edit Mode), pick your layout, click the gear next to it and choose Copy to Clipboard / Share. Paste the text here. Only the action bars are read: their shape, size and where they sit relative to each other.</p>
+  <textarea id="editText" rows="6" placeholder="5 0 59 0 0 0 2 0 MultiBarBottomLeft -4.0 0.0 -1 ##$'%/&amp;('%)$+$,# 0 1 0 4 4 UIParent …"></textarea>
+  <div class="row" style="margin-top:8px">
+    <label class="inline" for="editScreen">Your screen</label>
+    <select id="editScreen">
+      <option value="1920x1080">1920 × 1080</option>
+      <option value="2560x1440" selected>2560 × 1440</option>
+      <option value="3440x1440">3440 × 1440</option>
+      <option value="3840x2160">3840 × 2160</option>
+    </select>
+  </div>
+  <p class="hint" id="editMsg"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="editCancel" class="ghost">Cancel</button>
+    <button id="editGo" class="primary">Use these bars</button>
+  </div>
+</dialog>
+
+<dialog id="dlgMacro">
+  <h2>Send keybinds to WoW</h2>
+  <p class="hint">Paste each line into the WoW chat box and press Enter, one line at a time, top to bottom. The last line saves them. Each action bar button gets the key shown here, and any other key it had is removed. Buttons without a key here are left alone.</p>
+  <pre class="macro" id="macroText"></pre>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="macroCopy">Copy all</button>
+    <button id="macroClose" class="primary">Done</button>
+  </div>
+</dialog>
+
 <dialog id="dlgConfirm">
   <h2 id="confirmTitle">Are you sure?</h2>
   <p class="hint" id="confirmText"></p>
@@ -269,101 +342,70 @@ input[type=text], select, textarea {
 <script>
 "use strict";
 /* ============================================================
-   Data model
+   Data model (v2)
    state = {
-     v: 1,
-     keys: [["1","2",...], ...]           rows of key labels; cell id = "r-c"
-     zones: [{id, name, color}],
-     cells: { "r-c": zoneId },            which zone each slot belongs to
-     classes: [{id, name, color, abilities: [{id, name, zone, cell, icon}]}]
+     v: 2,
+     bars: [{ n: 1..8, show, orient: "h"|"v", lines, icons, x, y }]
+            lines = rows (horizontal) or columns (vertical), like Edit Mode.
+            x/y = position on the planner canvas, in button units.
+     binds: { "bar-button": "SHIFT-Q" }       WoW key strings
+     zones: [{ id, name, color }],
+     cells: { "bar-button": zoneId },
+     classes: [{ id, name, color, abilities: [{ id, name, zone, cell, icon }] }]
    }
-   icon = wowhead icon name (e.g. spell_holy_avenginewrath), an https URL, or a data: URI.
+   Slot ids are "bar-button", e.g. "2-5" = Action Bar 2 button 5, so zones and
+   abilities stay put when bars are reshaped, moved or rebound.
    ============================================================ */
-const STORE_KEY = "keybind-atlas:v1";
-const UI_KEY = "keybind-atlas:ui";
+const STORE_KEY = "keybind-atlas:v2";
+const UI_KEY = "keybind-atlas:ui2";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const BAR_CMD = n => n === 1 ? "ACTIONBUTTON" : "MULTIACTIONBAR" + (n - 1) + "BUTTON";
+const BAR_NAME = n => "Action Bar " + n;
 
-function starterState() {
-  const keys = [
-    ["1", "2", "3", "s-1", "s-2", "s-3", "c-1", "c-2", "c-3"],
-    ["4", "Q", "E", "s-4", "s-Q", "s-E", "c-4", "c-Q", "c-E"],
-    ["R", "F", "V", "s-R", "s-F", "s-V", "c-R", "c-F", "c-V"],
-    ["Z", "X", "C", "s-Z", "s-X", "s-C", "c-Z", "c-X", "c-C"],
-  ];
-  const Z = (id, name, color, cells) => ({ id, name, color, cells });
-  const zdefs = [
-    Z("builders", "Builders", "#2bb3a3", ["0-0", "0-1", "0-2", "1-0"]),
-    Z("offcd", "Offensive Cooldown", "#c43d8f", ["0-3", "0-4", "0-5", "1-3"]),
-    Z("party", "Party", "#8c8a3c", ["0-6", "0-7", "0-8"]),
-    Z("util", "Util", "#3552c8", ["1-1", "1-2"]),
-    Z("defcd", "Defensive Cooldowns", "#b8344c", ["1-4", "1-5"]),
-    Z("raid", "Raid", "#3f9b4c", ["1-6", "1-7", "1-8", "2-6", "2-7", "2-8"]),
-    Z("aoe", "AOE", "#2a3a92", ["2-0"]),
-    Z("taunt", "Taunt", "#cdbb27", ["2-1"]),
-    Z("offgcd", "Off Cd", "#56648f", ["2-2"]),
-    Z("heals", "Heals", "#a8424e", ["2-3", "2-4", "2-5"]),
-    Z("travel", "Travel", "#c99a35", ["3-0", "3-6", "3-7", "3-8"]),
-    Z("int", "INT", "#9aa1ab", ["3-2"]),
-    Z("intstun", "INT Stun", "#7c8aa2", ["3-3", "3-4", "3-5"]),
-  ];
-  const cells = {};
-  zdefs.forEach(z => z.cells.forEach(c => cells[c] = z.id));
-  const zones = zdefs.map(({ id, name, color }) => ({ id, name, color }));
-  const A = (name, zone, cell, icon = "") => ({ id: uid(), name, zone, cell, icon });
-  const paladin = {
-    id: uid(), name: "Paladin (example)", color: "#f48cba", abilities: [
-      A("Crusader Strike", "builders", "0-0", "spell_holy_crusaderstrike"),
-      A("Blade of Justice", "builders", "0-1", "ability_paladin_bladeofjustice"),
-      A("Judgment", "builders", "0-2", "spell_holy_righteousfury"),
-      A("Hammer of Wrath", "builders", "1-0", "spell_paladin_hammerofwrath"),
-      A("Avenging Wrath", "offcd", "0-3", "spell_holy_avenginewrath"),
-      A("Divine Toll", "offcd", "0-4", "ability_bastion_paladin"),
-      A("Wake of Ashes", "offcd", "0-5", "ability_paladin_wakeofashes"),
-      A("Blessing of Sacrifice", "party", "0-6", "spell_holy_sealofsacrifice"),
-      A("Blessing of Freedom", "util", "1-1", "spell_holy_sealofvalor"),
-      A("Blessing of Protection", "util", "1-2", "spell_holy_sealofprotection"),
-      A("Shield of Vengeance", "defcd", "1-4", "ability_paladin_shieldofthetemplar"),
-      A("Divine Shield", "defcd", "1-5", "spell_holy_divineshield"),
-      A("Divine Storm", "aoe", "2-0", "ability_paladin_divinestorm"),
-      A("Hand of Reckoning", "taunt", "2-1", "spell_holy_unyieldingfaith"),
-      A("Templar's Verdict", "offgcd", "2-2", "spell_paladin_templarsverdict"),
-      A("Word of Glory", "heals", "2-3", "inv_helmet_96"),
-      A("Flash of Light", "heals", "2-4", "spell_holy_flashheal"),
-      A("Lay on Hands", "heals", "2-5", "spell_holy_layonhands"),
-      A("Divine Steed", "travel", "3-0", "ability_paladin_divinesteed"),
-      A("Rebuke", "int", "3-2", "spell_holy_rebuke"),
-      A("Hammer of Justice", "intstun", "3-3", "spell_holy_sealofmight"),
-      A("Blinding Light", "intstun", "3-4", "ability_paladin_blindinglight"),
-      A("Intercession", "raid", null, ""),
-    ]
-  };
-  const monk = {
-    id: uid(), name: "Monk (example)", color: "#00ff98", abilities: [
-      A("Tiger Palm", "builders", "0-0", "ability_monk_tigerpalm"),
-      A("Rising Sun Kick", "builders", "0-1", "ability_monk_risingsunkick"),
-      A("Blackout Kick", "builders", "0-2", "ability_monk_roundhousekick"),
-      A("Invoke Xuen", "offcd", "0-3", "ability_monk_summontigerstatue"),
-      A("Touch of Karma", "defcd", "1-4", "ability_monk_touchofkarma"),
-      A("Spinning Crane Kick", "aoe", "2-0", "ability_monk_cranekick_new"),
-      A("Provoke", "taunt", "2-1", "ability_monk_provoke"),
-      A("Vivify", "heals", "2-3", "ability_monk_vivify"),
-      A("Roll", "travel", "3-0", "ability_monk_roll"),
-      A("Spear Hand Strike", "int", "3-2", "ability_monk_spearhand"),
-      A("Leg Sweep", "intstun", "3-3", "ability_monk_legsweep"),
-      A("Paralysis", "intstun", null, "ability_monk_paralysis"),
-    ]
-  };
-  return { v: 1, keys, zones, cells, classes: [paladin, monk] };
-}
-
+/* ---------------- presets ---------------- */
+function bar(n, show, orient, lines, x, y, icons = 12) { return { n, show, orient, lines, icons, x, y }; }
+const PRESETS = {
+  default: {
+    name: "Default UI",
+    note: "Bar 1 at the bottom with bars 2 and 3 stacked above it, bars 4 and 5 vertical on the right. Bar 1 keeps the default 1 to = keys.",
+    bars: () => [
+      bar(1, true, "h", 1, 0, 11), bar(2, true, "h", 1, 0, 10), bar(3, true, "h", 1, 0, 9),
+      bar(4, true, "v", 1, 14, 0), bar(5, true, "v", 1, 13, 0),
+      bar(6, false, "h", 1, 0, 13), bar(7, false, "h", 1, 0, 14), bar(8, false, "h", 1, 0, 15),
+    ],
+    binds: () => { const b = {}; ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="].forEach((k, i) => b["1-" + (i + 1)] = k); return b; },
+  },
+  blocks: {
+    name: "Three 3×4 blocks (plain, Shift, Ctrl)",
+    note: "Bars 1 to 3 as 3-wide, 4-tall blocks side by side. 1 2 3 / 4 Q E / R F V / Z X C, then the same keys with Shift and with Ctrl.",
+    bars: () => [
+      bar(1, true, "h", 4, 0, 0), bar(2, true, "h", 4, 3, 0), bar(3, true, "h", 4, 6, 0),
+      bar(4, false, "v", 1, 10, 0), bar(5, false, "v", 1, 11, 0), bar(6, false, "h", 1, 0, 5), bar(7, false, "h", 1, 0, 6), bar(8, false, "h", 1, 0, 7),
+    ],
+    binds: () => {
+      const keys = ["1", "2", "3", "4", "Q", "E", "R", "F", "V", "Z", "X", "C"]; const b = {};
+      keys.forEach((k, i) => { b["1-" + (i + 1)] = k; b["2-" + (i + 1)] = "SHIFT-" + k; b["3-" + (i + 1)] = "CTRL-" + k; });
+      return b;
+    },
+  },
+  twobysix: {
+    name: "Two 6×2 bars",
+    note: "Bars 1 and 2 as compact 6-wide, 2-tall blocks stacked. No keys assigned.",
+    bars: () => [
+      bar(1, true, "h", 2, 0, 2), bar(2, true, "h", 2, 0, 0), bar(3, false, "h", 1, 0, 5),
+      bar(4, false, "v", 1, 7, 0), bar(5, false, "v", 1, 8, 0), bar(6, false, "h", 1, 0, 6), bar(7, false, "h", 1, 0, 7), bar(8, false, "h", 1, 0, 8),
+    ],
+    binds: () => ({}),
+  },
+};
 function blankState() {
-  return { v: 1, keys: starterState().keys, zones: [], cells: {}, classes: [] };
+  return { v: 2, bars: PRESETS.default.bars(), binds: PRESETS.default.binds(), zones: [], cells: {}, classes: [] };
 }
 
 let state;
-let ui = { tab: "zones", brush: null, sel: null, editing: null, labels: true, labelsClass: false };
+let ui = { tab: "bars", brush: null, sel: null, editing: null, labels: true, labelsClass: false, capture: null, guide: "", barsDone: false, exported: false };
 
 /* ---------------- persistence ---------------- */
 function loadLocal() {
@@ -375,31 +417,94 @@ function save() {
   clearTimeout(saveTimer);
   setStatus("Saving…");
   saveTimer = setTimeout(() => {
+    saveTimer = null;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); setStatus("Saved in this browser"); }
     catch (e) { setStatus("Couldn't save in this browser. Export to keep your work."); }
   }, 250);
 }
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
-function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported })); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
 function setStatus(t) { $("#status").textContent = t; }
 
 function normalize(s) {
-  if (!s || !Array.isArray(s.keys) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (missing keys or zones).");
-  s.v = 1;
+  if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or zones).");
+  s.v = 2;
+  const def = PRESETS.default.bars();
+  s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
+  s.binds = s.binds || {};
   s.cells = s.cells || {};
   s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "" })) }));
   return s;
 }
+function clampInt(v, lo, hi, d) { v = parseInt(v, 10); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
 
-/* ---------------- helpers ---------------- */
-const rows = () => state.keys.length;
-const cols = () => Math.max(...state.keys.map(r => r.length));
-const keyOf = id => { const [r, c] = id.split("-").map(Number); return (state.keys[r] || [])[c] ?? "?"; };
+/* ---------------- key labels ---------------- */
+// WoW key string -> short label like the action bar shows: SHIFT-Q -> s-Q
+const KEY_SHORT = { BUTTON1: "M1", BUTTON2: "M2", BUTTON3: "M3", BUTTON4: "M4", BUTTON5: "M5", MOUSEWHEELUP: "MwU", MOUSEWHEELDOWN: "MwD", SPACE: "Spc", BACKSPACE: "Bs", ESCAPE: "Esc", ENTER: "Ent", TAB: "Tab", CAPSLOCK: "Caps", DELETE: "Del", INSERT: "Ins", HOME: "Hm", END: "End", PAGEUP: "PU", PAGEDOWN: "PD", UP: "Up", DOWN: "Dn", LEFT: "Lt", RIGHT: "Rt", NUMPADPLUS: "N+", NUMPADMINUS: "N-", NUMPADMULTIPLY: "N*", NUMPADDIVIDE: "N/", NUMPADDECIMAL: "N.", NUMPADENTER: "NEnt" };
+function shortKey(k) {
+  if (!k) return "";
+  const parts = k.split("-"); let base = parts.pop(); if (base === "" && parts.length) { parts.pop(); base = "-"; }
+  const mods = parts.map(m => ({ SHIFT: "s", CTRL: "c", ALT: "a", META: "m" }[m] || m[0].toLowerCase())).join("");
+  let b = KEY_SHORT[base] || base;
+  const m = /^BUTTON(\d+)$/.exec(base); if (m) b = "M" + m[1];
+  const n = /^NUMPAD(\d)$/.exec(base); if (n) b = "N" + n[1];
+  return (mods ? mods + "-" : "") + b;
+}
+// keyboard/mouse event -> WoW key string
+function eventToKey(e) {
+  let base = null;
+  if (e.type === "keydown") {
+    if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return null;
+    const c = e.code;
+    if (/^Key[A-Z]$/.test(c)) base = c.slice(3);
+    else if (/^Digit\d$/.test(c)) base = c.slice(5);
+    else if (/^Numpad\d$/.test(c)) base = "NUMPAD" + c.slice(6);
+    else if (/^F\d{1,2}$/.test(c)) base = c;
+    else base = ({ Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Backslash: "\\", Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/", Backquote: "`", Space: "SPACE", Tab: "TAB", Enter: "ENTER", Insert: "INSERT", Home: "HOME", End: "END", PageUp: "PAGEUP", PageDown: "PAGEDOWN", ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT", NumpadAdd: "NUMPADPLUS", NumpadSubtract: "NUMPADMINUS", NumpadMultiply: "NUMPADMULTIPLY", NumpadDivide: "NUMPADDIVIDE", NumpadDecimal: "NUMPADDECIMAL", NumpadEnter: "NUMPADENTER", CapsLock: "CAPSLOCK" })[c] || null;
+  } else if (e.type === "mousedown") {
+    base = { 1: "BUTTON3", 3: "BUTTON4", 4: "BUTTON5" }[e.button] || null;
+  } else if (e.type === "wheel") {
+    base = e.deltaY < 0 ? "MOUSEWHEELUP" : "MOUSEWHEELDOWN";
+  }
+  if (!base) return null;
+  return (e.altKey ? "ALT-" : "") + (e.ctrlKey ? "CTRL-" : "") + (e.shiftKey ? "SHIFT-" : "") + base;
+}
+
+/* ---------------- geometry ---------------- */
+function barGeom(b) {
+  const per = Math.ceil(b.icons / b.lines);
+  const used = Math.ceil(b.icons / per);
+  return b.orient === "h" ? { w: per, h: used, per } : { w: used, h: per, per };
+}
+// Lay out all visible bars on one canvas. Returns cell positions keyed by slot id.
+function layout() {
+  const vis = state.bars.filter(b => b.show);
+  const out = { cells: [], pos: {}, at: {}, W: 1, H: 1, bars: [] };
+  if (!vis.length) return out;
+  const minX = Math.min(...vis.map(b => b.x)), minY = Math.min(...vis.map(b => b.y));
+  vis.forEach(b => {
+    const g = barGeom(b);
+    const bx = b.x - minX, by = b.y - minY;
+    out.bars.push({ n: b.n, x: bx, y: by, w: g.w, h: g.h });
+    for (let i = 0; i < b.icons; i++) {
+      const a = Math.floor(i / g.per), c = i % g.per;
+      const r = b.orient === "h" ? a : c, col = b.orient === "h" ? c : a;
+      const id = b.n + "-" + (i + 1);
+      const R = by + r, C = bx + col;
+      out.cells.push({ id, bar: b.n, i: i + 1, r: R, c: C });
+      out.pos[id] = [R, C];
+      out.at[R + "," + C] = out.at[R + "," + C] || id;
+      out.W = Math.max(out.W, C + 1); out.H = Math.max(out.H, R + 1);
+    }
+  });
+  return out;
+}
+const slotLabel = id => { const k = state.binds[id]; if (k) return shortKey(k); const [b, i] = id.split("-"); return "B" + b + "·" + i; };
 const zoneById = id => state.zones.find(z => z.id === id);
 const curClass = () => state.classes.find(c => c.id === ui.tab);
-const allCells = () => { const out = []; for (let r = 0; r < rows(); r++) for (let c = 0; c < (state.keys[r] || []).length; c++) out.push(r + "-" + c); return out; };
-const zoneCells = zid => allCells().filter(id => state.cells[id] === zid);
+const visibleSlots = () => layout().cells.map(c => c.id);
+const zoneCells = zid => layout().cells.filter(c => state.cells[c.id] === zid).sort((a, b) => a.r - b.r || a.c - b.c).map(c => c.id);
 const initials = n => { const w = String(n).replace(/[^\p{L}\p{N} ]/gu, "").split(/\s+/).filter(Boolean); if (!w.length) return "?"; return (w.length === 1 ? w[0].slice(0, 2) : w.slice(0, 3).map(x => x[0]).join("")).toUpperCase(); };
 function iconSrc(icon) {
   if (!icon) return "";
@@ -408,8 +513,9 @@ function iconSrc(icon) {
 }
 const mismatched = a => a.cell && a.zone && state.cells[a.cell] !== a.zone;
 function toast(t) {
+  document.querySelectorAll(".toast").forEach(t => t.remove());
   const el = document.createElement("div"); el.className = "toast"; el.textContent = t; el.setAttribute("role", "status");
-  document.body.appendChild(el); setTimeout(() => el.remove(), 2200);
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2600);
 }
 function confirmBox(title, text, yesLabel = "Confirm") {
   return new Promise(res => {
@@ -421,82 +527,84 @@ function confirmBox(title, text, yesLabel = "Confirm") {
 }
 function tileHTML(a) {
   const src = iconSrc(a.icon);
-  const txt = `<div class="ab-text"><b>${esc(initials(a.name))}</b><small>${esc(a.name)}</small></div>`;
-  if (!src) return txt;
+  if (!src) return `<div class="ab-text"><b>${esc(initials(a.name))}</b><small>${esc(a.name)}</small></div>`;
   return `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">`;
 }
-// Replace broken icon images with the text tile.
 document.addEventListener("error", e => {
   const img = e.target;
   if (img.tagName === "IMG" && img.dataset.fallback) {
     const name = img.closest("[data-name]")?.dataset.name || "";
-    const div = document.createElement("div"); div.className = img.closest(".thumb") ? "" : "ab-text";
-    div.innerHTML = img.closest(".thumb") ? esc(initials(name)) : `<b>${esc(initials(name))}</b><small>${esc(name)}</small>`;
+    const inThumb = !!img.closest(".thumb");
+    const div = document.createElement("div"); div.className = inThumb ? "" : "ab-text";
+    div.innerHTML = inThumb ? esc(initials(name)) : `<b>${esc(initials(name))}</b><small>${esc(name)}</small>`;
     img.replaceWith(div);
   }
 }, true);
 
 /* ---------------- grid rendering ---------------- */
-function gridHTML({ cls = null, mini = false, showLabels = false, sel = null }) {
-  const C = cols();
+function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel = null }) {
+  const L = layout();
+  if (!L.cells.length) return `<p class="hint">No bars are shown. Turn one on in the Bars tab.</p>`;
   const selAb = cls && sel ? cls.abilities.find(a => a.id === sel) : null;
   const byCell = {};
   if (cls) cls.abilities.forEach(a => { if (a.cell) byCell[a.cell] = a; });
-  let h = `<div class="grid${mini ? " mini" : ""}" style="--cols:${C}" data-grid>`;
-  for (let r = 0; r < rows(); r++) for (let c = 0; c < C; c++) {
-    const id = r + "-" + c; const k = (state.keys[r] || [])[c];
-    if (k === undefined) { h += `<div></div>`; continue; }
+  let h = `<div class="grid ${mini ? "fit" : ""} ${mode === "bars" ? "bars-mode" : ""} ${mode === "zones" ? "painting" : ""}" style="--cols:${L.W};--rows:${L.H}" data-grid>`;
+  L.cells.forEach(({ id, bar, i, r, c }) => {
     const z = zoneById(state.cells[id]);
     const a = byCell[id];
+    const key = state.binds[id];
     const cl = ["cell"];
     if (z) cl.push("zoned");
+    if (!key) cl.push("unbound");
     if (a && mismatched(a)) cl.push("mismatch");
     if (selAb && selAb.zone && state.cells[id] === selAb.zone) { cl.push("target"); if (!a) cl.push("free"); }
     if (a && a.id === sel) cl.push("sel");
-    // zone edge lines: draw a bright edge where the neighbor is a different zone
-    let sh = [];
+    if (ui.capture === id) cl.push("capture");
+    const sh = [];
     if (z) {
-      const nb = (rr, cc) => state.cells[rr + "-" + cc];
+      const nb = (rr, cc) => state.cells[L.at[rr + "," + cc]];
       if (nb(r - 1, c) !== z.id) sh.push("inset 0 2px 0 var(--z)");
       if (nb(r + 1, c) !== z.id) sh.push("inset 0 -2px 0 var(--z)");
       if (nb(r, c - 1) !== z.id) sh.push("inset 2px 0 0 var(--z)");
       if (nb(r, c + 1) !== z.id) sh.push("inset -2px 0 0 var(--z)");
     }
-    const title = `${k}${z ? " · " + z.name : ""}${a ? " · " + a.name : ""}${a && mismatched(a) ? " (belongs in " + (zoneById(a.zone)?.name || "?") + ")" : ""}`;
-    h += `<button class="${cl.join(" ")}" data-cell="${id}" ${a ? `data-ab="${a.id}" data-name="${esc(a.name)}" draggable="${mini ? "false" : "true"}"` : ""} style="--z:${z ? z.color : "transparent"}" title="${esc(title)}" ${mini ? 'tabindex="-1"' : ""}>`;
+    const title = `${BAR_NAME(bar)}, button ${i}${key ? " · " + key : " · no key"}${z ? " · " + z.name : ""}${a ? " · " + a.name : ""}${a && mismatched(a) ? " (belongs in " + (zoneById(a.zone)?.name || "?") + ")" : ""}`;
+    h += `<button class="${cl.join(" ")}" data-cell="${id}" ${a ? `data-ab="${a.id}" data-name="${esc(a.name)}" draggable="${mini ? "false" : "true"}"` : ""} style="grid-row:${r + 1};grid-column:${c + 1};--z:${z ? z.color : "transparent"}" title="${esc(title)}" ${mini ? 'tabindex="-1"' : ""}>`;
     if (a) h += `<div class="ab-tile">${tileHTML(a)}</div>`;
     if (sh.length) h += `<div class="edges" style="box-shadow:${sh.join(",")}"></div>`;
-    h += `<span class="key">${esc(k)}</span>`;
+    h += `<span class="key">${esc(key ? shortKey(key) : (mode === "bars" ? "·" : ""))}</span>`;
     if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong zone">!</span>`;
     h += `</button>`;
-  }
-  if (showLabels) h += `<div class="zlabels">${zoneLabels()}</div>`;
+  });
+  if (showLabels) h += `<div class="zlabels">${zoneLabels(L)}</div>`;
+  if (mode === "bars") h += `<div class="zlabels">${L.bars.map(b => `<span class="blabel" style="left:${(b.x + b.w / 2) / L.W * 100}%;top:${(b.y + b.h / 2) / L.H * 100}%">Bar ${b.n}</span>`).join("")}</div>`;
   return h + `</div>`;
 }
-// One label per connected patch of a zone, centered on the patch.
-function zoneLabels() {
-  const R = rows(), C = cols(); const seen = new Set(); let out = "";
-  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const id = r + "-" + c, zid = state.cells[id];
-    if (!zid || seen.has(id)) continue;
-    const comp = []; const stack = [[r, c]]; seen.add(id);
+function zoneLabels(L) {
+  const seen = new Set(); let out = "";
+  L.cells.forEach(({ id }) => {
+    const zid = state.cells[id]; if (!zid || seen.has(id)) return;
+    const comp = []; const stack = [id]; seen.add(id);
     while (stack.length) {
-      const [y, x] = stack.pop(); comp.push([y, x]);
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dy, dx]) => { const n = (y + dy) + "-" + (x + dx); if (!seen.has(n) && state.cells[n] === zid) { seen.add(n); stack.push([y + dy, x + dx]); } });
+      const cur = stack.pop(); const [y, x] = L.pos[cur]; comp.push([y, x]);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dy, dx]) => { const n = L.at[(y + dy) + "," + (x + dx)]; if (n && !seen.has(n) && state.cells[n] === zid) { seen.add(n); stack.push(n); } });
     }
-    const z = zoneById(zid); if (!z) continue;
+    const z = zoneById(zid); if (!z) return;
     const minR = Math.min(...comp.map(p => p[0])), maxR = Math.max(...comp.map(p => p[0]));
     const minC = Math.min(...comp.map(p => p[1])), maxC = Math.max(...comp.map(p => p[1]));
-    const cy = ((minR + maxR + 1) / 2) / R * 100, cx = ((minC + maxC + 1) / 2) / C * 100;
-    const w = Math.max(1, maxC - minC + 1) / C * 100;
-    out += `<span class="zlabel" style="left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / C) - 1}%">${esc(z.name)}</span>`;
-  }
+    const cy = ((minR + maxR + 1) / 2) / L.H * 100, cx = ((minC + maxC + 1) / 2) / L.W * 100;
+    const w = (maxC - minC + 1) / L.W * 100;
+    out += `<span class="zlabel" style="left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / L.W) - 0.5}%">${esc(z.name)}</span>`;
+  });
   return out;
 }
 
 /* ---------------- tabs ---------------- */
 function renderTabs() {
-  const t = [`<button class="tab" role="tab" aria-selected="${ui.tab === "zones"}" data-tab="zones">Zones</button>`];
+  const t = [
+    `<button class="tab" role="tab" aria-selected="${ui.tab === "bars"}" data-tab="bars">Bars</button>`,
+    `<button class="tab" role="tab" aria-selected="${ui.tab === "zones"}" data-tab="zones">Zones</button>`,
+  ];
   state.classes.forEach(c => t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === c.id}" data-tab="${c.id}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`));
   t.push(`<button class="tab" data-act="add-class" title="Add a class or spec">+ Class</button>`);
   t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === "overview"}" data-tab="overview">Compare</button>`);
@@ -505,7 +613,7 @@ function renderTabs() {
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.act === "add-class") return addClass();
-  ui.tab = b.dataset.tab; ui.sel = null; ui.editing = null; saveUI(); render();
+  ui.tab = b.dataset.tab; ui.sel = null; ui.editing = null; ui.capture = null; saveUI(); render();
 });
 function addClass(from = null) {
   const c = from
@@ -518,91 +626,126 @@ function addClass(from = null) {
 
 /* ---------------- main render ---------------- */
 function render() {
-  if (ui.tab !== "zones" && ui.tab !== "overview" && !curClass()) ui.tab = "zones";
+  if (!["bars", "zones", "overview"].includes(ui.tab) && !curClass()) ui.tab = "bars";
   renderTabs();
-  if (ui.tab === "zones") renderZones();
+  if (ui.tab === "bars") renderBars();
+  else if (ui.tab === "zones") renderZones();
   else if (ui.tab === "overview") renderOverview();
   else renderClass();
 }
-function starterBanner() {
+function guideHTML() {
   if (ui.guide === "hidden") return "";
   const steps = [
-    ["Paint your zones", "On the Zones tab, add a zone (Builders, Interrupt, Defensives…) and click or drag across the keys it should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
+    ["Match your action bars", "On the Bars tab, import your Edit Mode layout (or pick a preset / shape bars by hand), then import your keybinds from WoW or click a button and press its key.", !!ui.barsDone, "bars"],
+    ["Paint your zones", "On the Zones tab, add zones (Builders, Interrupt, Defensives…) and click or drag across the buttons each one should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
     ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
-    ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free key of that zone, and you can drag it around inside.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
-    ["Compare and back up", "The Compare tab lines every class up on the same map. Export JSON to keep a backup or share your layout.", !!ui.exported, "overview"],
+    ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free button of that zone, and you can drag it around.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
+    ["Compare and back up", "The Compare tab lines every class up on the same bars. Export JSON to keep a backup or share your layout.", !!ui.exported, "overview"],
   ];
   const next = steps.findIndex(s => !s[2]);
   return `<div class="guide" role="region" aria-label="Getting started">
     <div class="row" style="justify-content:space-between">
       <h2>Getting started</h2>
-      <div class="row">
-        ${state.classes.length || state.zones.length ? "" : `<button class="small" data-act="load-example">Load an example layout</button>`}
-        <button class="small ghost" data-act="hide-guide">${next === -1 ? "Done" : "Hide"}</button>
-      </div>
+      <button class="small ghost" data-act="hide-guide">${next === -1 ? "Done" : "Hide"}</button>
     </div>
     <p class="hint">Everything saves in this browser only. Nothing is uploaded.</p>
     <ol>${steps.map((s, i) => `<li class="${s[2] ? "done" : i === next ? "now" : ""}"><b>${s[0]}</b><span>${s[1]}</span>${i === next && s[3] && ui.tab !== s[3] ? `<button class="small" data-goto="${s[3]}">Go</button>` : ""}</li>`).join("")}</ol>
   </div>`;
 }
 
+/* ===== Bars view ===== */
+function renderBars() {
+  const capBar = ui.capture ? `<div class="capture-bar" role="status"><p>Press the key or mouse button for <b>${esc(BAR_NAME(+ui.capture.split("-")[0]))}, button ${ui.capture.split("-")[1]}</b>. Backspace clears it, Esc cancels.</p><button class="small" data-act="cap-clear">Clear key</button><button class="small ghost" data-act="cap-cancel">Cancel</button></div>` : "";
+  $("#main").innerHTML = `
+  <section class="main-col">
+    ${guideHTML()}
+    <h2>Your action bars</h2>
+    <p class="hint">Import your Edit Mode layout, or shape each bar on the right and drag bars around to match your screen. Click a button to set its key.</p>
+    ${capBar}
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
+  </section>
+  <aside class="side" id="side">${barsSideHTML()}</aside>`;
+}
+function barsSideHTML() {
+  const opt = (v, cur, label = v) => `<option value="${v}" ${String(v) === String(cur) ? "selected" : ""}>${label}</option>`;
+  const nb = Object.keys(state.binds).length;
+  return `
+  <div style="display:grid;gap:8px">
+    <h2>Keybinds</h2>
+    <p class="hint">${nb} button${nb === 1 ? "" : "s"} have a key.</p>
+    <div class="row">
+      <button class="primary small" data-act="wow-import">Import keybinds from WoW</button>
+      <button class="small" data-act="wow-export" ${nb ? "" : "disabled"}>Send to WoW</button>
+      <button class="small ghost danger" data-act="binds-clear" ${nb ? "" : "disabled"}>Clear all</button>
+    </div>
+  </div>
+  <div style="display:grid;gap:8px">
+    <h2>Bar layout</h2>
+    <div class="row"><button class="primary small" data-act="edit-import">Import Edit Mode layout</button></div>
+    <div class="row"><select id="presetSel" style="flex:1" aria-label="Preset">${Object.entries(PRESETS).map(([k, p]) => opt(k, ui.preset || "default", esc(p.name))).join("")}</select><button class="small" data-act="preset">Apply</button></div>
+    <p class="hint" id="presetNote">${esc(PRESETS[ui.preset || "default"].note)}</p>
+  </div>
+  <div style="display:grid;gap:2px">
+    <h2>Bars</h2>
+    ${state.bars.map(b => `
+      <div class="bar-row ${b.show ? "" : "off"}" data-bar="${b.n}">
+        <label class="inline"><input type="checkbox" data-bf="show" ${b.show ? "checked" : ""}> <span class="bar-name">${BAR_NAME(b.n)}</span></label>
+        <span></span>
+        <div class="bar-opts">
+          <select data-bf="orient" aria-label="Orientation">${opt("h", b.orient, "Horizontal")}${opt("v", b.orient, "Vertical")}</select>
+          <select data-bf="lines" aria-label="${b.orient === "h" ? "Rows" : "Columns"}">${[1, 2, 3, 4, 6, 12].map(n => opt(n, b.lines, n + (b.orient === "h" ? (n === 1 ? " row" : " rows") : (n === 1 ? " col" : " cols")))).join("")}</select>
+          <select data-bf="icons" aria-label="Number of buttons">${[6, 7, 8, 9, 10, 11, 12].map(n => opt(n, b.icons, n + " buttons")).join("")}</select>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
 /* ===== Zones view ===== */
 function renderZones() {
   if (ui.brush === null && state.zones[0]) ui.brush = state.zones[0].id;
-  const m = $("#main");
-  m.innerHTML = `
+  $("#main").innerHTML = `
   <section class="main-col">
-    ${starterBanner()}
+    ${guideHTML()}
     <h2>Zone map</h2>
-    <p class="hint">Pick a zone on the right, then click or drag across slots to paint it. Dragging from a slot that already has that zone erases instead. Every class uses this same map.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
+    <p class="hint">Pick a zone on the right, then click or drag across buttons to paint it. Dragging from a button that already has that zone erases instead. Every class uses this same map.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "zones", showLabels: ui.labels })}</div>
     <div class="row"><label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Show zone names</label></div>
   </section>
-  <aside class="side">
+  <aside class="side" id="side">
     <div style="display:grid;gap:8px">
       <h2>Zones</h2>
-      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, then paint it onto the keys.</p>`}</div>
+      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, then paint it onto the buttons.</p>`}</div>
       <div class="row">
         <button data-act="add-zone">+ Add zone</button>
         <button class="pick ${ui.brush === "" ? "primary" : ""}" data-brush="">Eraser</button>
       </div>
     </div>
-    <div style="display:grid;gap:8px">
-      <h2>Keys</h2>
-      <p class="hint">One row per line, keys separated by spaces. Zones and abilities stay attached to the slot position, so renaming a key keeps everything in place.</p>
-      <textarea id="keysText" rows="${Math.max(4, rows() + 1)}" spellcheck="false">${esc(state.keys.map(r => r.join(" ")).join("\n"))}</textarea>
-      <div class="row"><button id="applyKeys">Apply keys</button></div>
-    </div>
   </aside>`;
-  $("#grid" + "Wrap").querySelector("[data-grid]").classList.add("painting");
 }
 function zoneListHTML() {
   return state.zones.map(z => {
-    const n = zoneCells(z.id).length;
+    const n = Object.values(state.cells).filter(v => v === z.id).length;
     return `<div class="zone-row ${ui.brush === z.id ? "active" : ""}" data-zone="${z.id}">
       <input type="color" value="${esc(z.color)}" data-zcolor="${z.id}" aria-label="${esc(z.name)} color">
       <input type="text" value="${esc(z.name)}" data-zname="${z.id}" aria-label="Zone name">
-      <span class="count" title="Slots">${n}</span>
+      <span class="count" title="Buttons in this zone">${n}</span>
       <button class="small pick ${ui.brush === z.id ? "primary" : ""}" data-brush="${z.id}">Paint</button>
       <button class="small ghost danger" data-delzone="${z.id}" aria-label="Delete ${esc(z.name)}">✕</button>
     </div>`;
   }).join("");
 }
-function refreshZoneGrid() {
-  const w = $("#gridWrap"); if (!w) return;
-  w.innerHTML = gridHTML({ showLabels: ui.labels });
-  w.querySelector("[data-grid]").classList.add("painting");
-}
+function refreshGrid(opts) { const w = $("#gridWrap"); if (w) w.innerHTML = gridHTML(opts); }
+const refreshZoneGrid = () => refreshGrid({ mode: "zones", showLabels: ui.labels });
+const refreshBarsGrid = () => refreshGrid({ mode: "bars" });
 
 /* ===== Class view ===== */
 function renderClass() {
   const cls = curClass();
-  const m = $("#main");
   const unplaced = cls.abilities.filter(a => !a.cell).length;
   const bad = cls.abilities.filter(mismatched).length;
-  m.innerHTML = `
+  $("#main").innerHTML = `
   <section class="main-col">
-    ${starterBanner()}
+    ${guideHTML()}
     <div class="row" style="justify-content:space-between">
       <h2>${esc(cls.name)} bars</h2>
       <div class="row">
@@ -610,7 +753,7 @@ function renderClass() {
         <button class="small" data-act="autoplace" ${unplaced ? "" : "disabled"}>Auto-place ${unplaced ? "(" + unplaced + ")" : ""}</button>
       </div>
     </div>
-    <p class="hint">Select an ability, then click a slot to move it there (it swaps if the slot is taken). Its zone lights up. You can also drag abilities between slots or from the list. Click an empty slot to add an ability there.</p>
+    <p class="hint">Select an ability, then click a button to move it there (it swaps if the button is taken). Its zone lights up. You can also drag abilities between buttons or from the list. Click an empty button to add an ability there.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass })}</div>
     ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
     <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
@@ -627,7 +770,7 @@ function classSideHTML(cls) {
   </div>
   <form id="addAb" style="display:grid;gap:6px">
     <h2>Add ability</h2>
-    <div class="row"><input type="text" id="newAbName" placeholder="Ability name" aria-label="Ability name" required></div>
+    <div class="row"><input type="text" id="newAbName" placeholder="${ui.addCell ? "Ability for " + esc(slotLabel(ui.addCell)) : "Ability name"}" aria-label="Ability name" required></div>
     <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone || "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
   </form>
@@ -636,17 +779,17 @@ function classSideHTML(cls) {
     <div class="ab-groups" id="abGroups">`;
   const groups = state.zones.map(z => ({ z, list: cls.abilities.filter(a => a.zone === z.id) }));
   groups.push({ z: { id: "", name: "No zone", color: "#555" }, list: cls.abilities.filter(a => !a.zone || !zoneById(a.zone)) });
+  if (!state.zones.length) h += `<p class="hint">Paint some zones first so abilities have somewhere to go.</p>`;
   groups.forEach(({ z, list }) => {
     if (!list.length && !z.id) return;
     const cap = z.id ? zoneCells(z.id).length : 0;
-    h += `<div class="zgroup" data-dropzone="${z.id}"><div class="zgroup-h"><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}${z.id ? `<span class="cap ${list.length > cap ? "full" : ""}" title="Abilities / slots">${list.length}/${cap}</span>` : ""}</div>`;
+    h += `<div class="zgroup" data-dropzone="${z.id}"><div class="zgroup-h"><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}${z.id ? `<span class="cap ${list.length > cap ? "full" : ""}" title="Abilities / buttons">${list.length}/${cap}</span>` : ""}</div>`;
     list.forEach(a => {
-      const slotTxt = a.cell ? keyOf(a.cell) : "unplaced";
       const src = iconSrc(a.icon);
       h += `<button class="ab ${ui.sel === a.id ? "sel" : ""}" data-ab="${a.id}" data-name="${esc(a.name)}" draggable="true">
         <span class="thumb" style="background:${esc(z.color)}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name))}</span>
         <span class="nm">${esc(a.name)}</span>
-        <span class="slot ${!a.cell ? "un" : mismatched(a) ? "bad" : ""}">${esc(slotTxt)}</span>
+        <span class="slot ${!a.cell ? "un" : mismatched(a) ? "bad" : ""}">${esc(a.cell ? slotLabel(a.cell) : "unplaced")}</span>
         <span class="small ghost" data-edit="${a.id}" role="button" tabindex="0" aria-label="Edit ${esc(a.name)}" style="padding:2px 6px;color:var(--muted)">Edit</span>
       </button>`;
       if (ui.editing === a.id) h += editorHTML(a, zopts);
@@ -669,25 +812,21 @@ function editorHTML(a, zopts) {
     </div>
   </div>`;
 }
-function refreshClass(keepSide = false) {
+function refreshClass(gridOnly = false) {
   const cls = curClass(); if (!cls) return render();
-  if (keepSide) {
-    $("#gridWrap").innerHTML = gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass });
-  } else {
-    const y = $("#side")?.scrollTop; renderClass();
-  }
+  if (gridOnly) refreshGrid({ cls, sel: ui.sel, showLabels: ui.labelsClass });
+  else renderClass();
 }
 
 /* ===== Overview ===== */
 function renderOverview() {
-  const m = $("#main");
-  let cards = state.classes.map(c => {
+  const cards = state.classes.map(c => {
     const placed = c.abilities.filter(a => a.cell).length;
     const bad = c.abilities.filter(mismatched).length;
     return `<div class="ov-card" data-open="${c.id}" role="button" tabindex="0">
-      <div class="row" style="justify-content:space-between"><h3><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(c.color)};margin-right:6px"></span>${esc(c.name)}</h3>
+      <div class="row" style="justify-content:space-between"><h3><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(c.color)};margin-right:6px"></span>${esc(c.name)}</h3>
       <span class="meta">${placed}/${c.abilities.length} placed${bad ? ` · <span style="color:var(--danger)">${bad} off-zone</span>` : ""}</span></div>
-      ${gridHTML({ cls: c, mini: true })}
+      <div class="grid-wrap">${gridHTML({ cls: c, mini: true })}</div>
     </div>`;
   }).join("");
   let table = `<table><thead><tr><th>Zone</th>${state.classes.map(c => `<th>${esc(c.name)}</th>`).join("")}</tr></thead><tbody>`;
@@ -695,25 +834,25 @@ function renderOverview() {
     const ids = zoneCells(z.id);
     table += `<tr><th><i class="sw" style="background:${esc(z.color)};margin-right:6px"></i>${esc(z.name)}</th>`;
     state.classes.forEach(c => {
-      const list = c.abilities.filter(a => a.zone === z.id).sort((a, b) => (a.cell ? ids.indexOf(a.cell) : 99) - (b.cell ? ids.indexOf(b.cell) : 99));
-      table += `<td>${list.map(a => `<div><span class="k">${a.cell ? esc(keyOf(a.cell)) : "—"}</span>${esc(a.name)}</div>`).join("") || `<span style="color:var(--muted)">·</span>`}</td>`;
+      const list = c.abilities.filter(a => a.zone === z.id).sort((a, b) => (a.cell ? ids.indexOf(a.cell) : 999) - (b.cell ? ids.indexOf(b.cell) : 999));
+      table += `<td>${list.map(a => `<div><span class="k">${a.cell ? esc(slotLabel(a.cell)) : "—"}</span>${esc(a.name)}</div>`).join("") || `<span style="color:var(--muted)">·</span>`}</td>`;
     });
     table += `</tr>`;
   });
   table += `</tbody></table>`;
-  m.innerHTML = `<section class="main-col" style="grid-column:1/-1">
-    ${starterBanner()}
+  $("#main").innerHTML = `<section class="main-col" style="grid-column:1/-1">
+    ${guideHTML()}
     <h2>All classes</h2>
-    <p class="hint">Same zone map, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
+    <p class="hint">Same bars and zones, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
     <div class="ov">${cards || `<p class="hint">No classes yet. Use + Class to add one.</p>`}</div>
-    <h2 style="margin-top:12px">By zone</h2>
-    <div class="zmatrix">${table}</div>
+    ${state.zones.length && state.classes.length ? `<h2 style="margin-top:12px">By zone</h2><div class="zmatrix">${table}</div>` : ""}
   </section>`;
 }
 
-/* ---------------- interactions ---------------- */
+/* ---------------- pointer: zone painting + bar dragging ---------------- */
 const main = $("#main");
-let paint = null; // {mode:'set'|'erase', zone}
+let paint = null; // zones tab: {mode, zone}
+let drag = null;  // bars tab: {bar, sx, sy, ox, oy, unit, moved, cell}
 function paintCell(btn) {
   const id = btn?.dataset?.cell; if (!id || !paint) return;
   const want = paint.mode === "erase" ? undefined : paint.zone;
@@ -722,32 +861,95 @@ function paintCell(btn) {
   refreshZoneGrid();
 }
 main.addEventListener("pointerdown", e => {
-  if (ui.tab !== "zones") return;
-  const btn = e.target.closest(".cell"); if (!btn) return;
-  e.preventDefault();
-  const id = btn.dataset.cell;
-  if (ui.brush === "" || ui.brush == null) paint = { mode: "erase" };
-  else paint = { mode: state.cells[id] === ui.brush ? "erase" : "set", zone: ui.brush };
-  paintCell(btn);
+  const btn = e.target.closest(".cell"); if (!btn || e.button !== 0) return;
+  if (ui.tab === "zones") {
+    e.preventDefault();
+    const id = btn.dataset.cell;
+    if (!ui.brush) paint = { mode: "erase" };
+    else paint = { mode: state.cells[id] === ui.brush ? "erase" : "set", zone: ui.brush };
+    paintCell(btn);
+  } else if (ui.tab === "bars") {
+    e.preventDefault();
+    const n = +btn.dataset.cell.split("-")[0];
+    const b = state.bars.find(x => x.n === n);
+    const r = btn.getBoundingClientRect();
+    drag = { bar: b, sx: e.clientX, sy: e.clientY, ox: b.x, oy: b.y, unit: r.width + 3, moved: false, cell: btn.dataset.cell };
+  }
 });
 window.addEventListener("pointermove", e => {
-  if (!paint) return;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  paintCell(el?.closest?.(".cell"));
+  if (paint) { const el = document.elementFromPoint(e.clientX, e.clientY); paintCell(el?.closest?.(".cell")); return; }
+  if (drag) {
+    const dx = Math.round((e.clientX - drag.sx) / drag.unit), dy = Math.round((e.clientY - drag.sy) / drag.unit);
+    if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) drag.moved = true;
+    const nx = Math.max(0, drag.ox + dx), ny = Math.max(0, drag.oy + dy);
+    if (drag.moved && (nx !== drag.bar.x || ny !== drag.bar.y)) {
+      // keep everything non-negative relative to other bars
+      drag.bar.x = nx; drag.bar.y = ny; refreshBarsGrid(); $("#gridWrap [data-grid]")?.classList.add("dragging");
+    }
+  }
 });
 window.addEventListener("pointerup", () => {
-  if (!paint) return; paint = null; save();
-  const zl = $("#zoneList"); if (zl) zl.innerHTML = zoneListHTML();
+  if (paint) { paint = null; save(); const zl = $("#zoneList"); if (zl) zl.innerHTML = zoneListHTML() || ""; }
+  if (drag) {
+    const d = drag; drag = null;
+    if (d.moved) { normalizeBarOrigin(); ui.barsDone = true; saveUI(); save(); refreshBarsGrid(); }
+    else { ui.capture = d.cell; renderBars(); }
+  }
 });
+// Shift all bars so the top-left bar sits at 0,0 (keeps numbers small).
+function normalizeBarOrigin() {
+  const vis = state.bars.filter(b => b.show); if (!vis.length) return;
+  const mx = Math.min(...vis.map(b => b.x)), my = Math.min(...vis.map(b => b.y));
+  state.bars.forEach(b => { b.x = Math.max(0, b.x - mx); b.y = Math.max(0, b.y - my); });
+}
 
+/* ---------------- key capture ---------------- */
+function setBind(slot, key) {
+  if (key) for (const k in state.binds) if (state.binds[k] === key && k !== slot) delete state.binds[k]; // a key can only do one thing
+  if (key) state.binds[slot] = key; else delete state.binds[slot];
+  ui.capture = null; ui.barsDone = true; saveUI(); save(); renderBars();
+}
+window.addEventListener("keydown", e => {
+  if (!ui.capture || ui.tab !== "bars" || document.querySelector("dialog[open]")) return;
+  if (e.key === "Escape") { e.preventDefault(); ui.capture = null; renderBars(); return; }
+  if ((e.key === "Backspace" || e.key === "Delete") && !e.shiftKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); setBind(ui.capture, null); return; }
+  const k = eventToKey(e); if (!k) return;
+  e.preventDefault(); setBind(ui.capture, k);
+}, true);
+window.addEventListener("mousedown", e => {
+  if (!ui.capture || ui.tab !== "bars" || e.button === 0 || e.button === 2) return;
+  const k = eventToKey(e); if (k) { e.preventDefault(); setBind(ui.capture, k); }
+}, true);
+window.addEventListener("wheel", e => {
+  if (!ui.capture || ui.tab !== "bars") return;
+  const k = eventToKey(e); if (k) { e.preventDefault(); setBind(ui.capture, k); }
+}, { passive: false, capture: true });
+
+/* ---------------- clicks ---------------- */
 main.addEventListener("click", async e => {
   const t = e.target;
   const act = t.closest("[data-act]")?.dataset.act;
-  // shared actions
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
-  if (act === "load-example") { state = starterState(); ui.tab = "zones"; ui.brush = null; save(); render(); toast("Example layout loaded. Edit or delete anything."); return; }
   const go = t.closest("[data-goto]");
   if (go) { ui.tab = go.dataset.goto; ui.sel = ui.editing = null; saveUI(); render(); return; }
+
+  if (ui.tab === "bars") {
+    if (act === "cap-cancel") { ui.capture = null; renderBars(); return; }
+    if (act === "cap-clear") { setBind(ui.capture, null); return; }
+    if (act === "wow-import") { openWowImport(); return; }
+    if (act === "wow-export") { openWowExport(); return; }
+    if (act === "edit-import") { $("#editText").value = ""; $("#editMsg").textContent = ""; $("#dlgEdit").showModal(); return; }
+    if (act === "binds-clear") {
+      if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your zones and abilities stay where they are.", "Clear keybinds")) return;
+      state.binds = {}; save(); renderBars(); return;
+    }
+    if (act === "preset") {
+      const p = PRESETS[$("#presetSel").value];
+      if (!await confirmBox(`Use "${p.name}"?`, "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Apply preset")) return;
+      state.bars = p.bars(); state.binds = p.binds(); ui.barsDone = true; saveUI(); save(); renderBars(); return;
+    }
+    return;
+  }
   if (ui.tab === "zones") {
     const brush = t.closest("[data-brush]");
     if (brush) { ui.brush = brush.dataset.brush; render(); return; }
@@ -762,23 +964,13 @@ main.addEventListener("click", async e => {
     if (dz) {
       const z = zoneById(dz.dataset.delzone);
       const n = state.classes.reduce((s, c) => s + c.abilities.filter(a => a.zone === z.id).length, 0);
-      if (!await confirmBox(`Delete "${z.name}"?`, `Its ${zoneCells(z.id).length} slots become unzoned${n ? ` and ${n} abilities lose their zone tag (they stay on the bars)` : ""}.`, "Delete zone")) return;
+      const cnt = Object.values(state.cells).filter(v => v === z.id).length;
+      if (!await confirmBox(`Delete "${z.name}"?`, `Its ${cnt} buttons become unzoned${n ? ` and ${n} abilities lose their zone tag (they stay on the bars)` : ""}.`, "Delete zone")) return;
       state.zones = state.zones.filter(x => x.id !== z.id);
       for (const k in state.cells) if (state.cells[k] === z.id) delete state.cells[k];
       state.classes.forEach(c => c.abilities.forEach(a => { if (a.zone === z.id) a.zone = null; }));
       if (ui.brush === z.id) ui.brush = null;
       save(); render(); return;
-    }
-    if (t.id === "applyKeys") {
-      const lines = $("#keysText").value.split("\n").map(l => l.trim()).filter(Boolean).map(l => l.split(/\s+/));
-      if (!lines.length) return toast("Add at least one row of keys.");
-      state.keys = lines;
-      const valid = new Set(allCells());
-      for (const k in state.cells) if (!valid.has(k)) delete state.cells[k];
-      let dropped = 0;
-      state.classes.forEach(c => c.abilities.forEach(a => { if (a.cell && !valid.has(a.cell)) { a.cell = null; dropped++; } }));
-      save(); render(); toast(dropped ? `Keys updated. ${dropped} abilities moved off the bar.` : "Keys updated.");
-      return;
     }
     return;
   }
@@ -786,7 +978,6 @@ main.addEventListener("click", async e => {
     const card = t.closest("[data-open]"); if (card) { ui.tab = card.dataset.open; saveUI(); render(); }
     return;
   }
-  // class view
   const cls = curClass(); if (!cls) return;
   if (act === "autoplace") {
     let n = 0;
@@ -794,7 +985,7 @@ main.addEventListener("click", async e => {
       const free = zoneCells(a.zone).find(id => !cls.abilities.some(b => b.cell === id));
       if (free) { a.cell = free; n++; }
     });
-    save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free slots in those zones. Paint more slots on the Zones tab."); return;
+    save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free buttons in those zones. Paint more on the Zones tab."); return;
   }
   if (act === "dup-class") return addClass(cls);
   if (act === "del-class") {
@@ -820,10 +1011,9 @@ function onCellClick(cls, cellId) {
     if (a) { moveTo(cls, a, cellId); ui.sel = null; save(); return refreshClass(); }
   }
   if (occupant) { ui.sel = occupant.id; return refreshClass(); }
-  // empty cell, nothing selected: start adding an ability into this slot
   ui.addCell = cellId; ui.addZone = state.cells[cellId] || "";
   refreshClass();
-  const n = $("#newAbName"); n?.focus(); n.placeholder = `Ability for ${keyOf(cellId)}`;
+  $("#newAbName")?.focus();
 }
 function moveTo(cls, a, cellId) {
   const occupant = cls.abilities.find(x => x.cell === cellId);
@@ -842,7 +1032,7 @@ main.addEventListener("submit", e => {
   cls.abilities.push(a);
   ui.addCell = null; ui.addZone = zone || "";
   save(); refreshClass();
-  toast(a.cell ? `${name} → ${keyOf(a.cell)}` : `${name} added (no free slot in that zone)`);
+  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added (no free button in that zone)`);
   setTimeout(() => $("#newAbName")?.focus(), 0);
 });
 main.addEventListener("input", e => {
@@ -859,16 +1049,23 @@ main.addEventListener("input", e => {
   if (ed && t.dataset.f) {
     const a = cls.abilities.find(x => x.id === ed.dataset.editor);
     if (t.dataset.f === "name") { a.name = t.value; save(); refreshClass(true); }
-    if (t.dataset.f === "icon") { if (t.value !== "(uploaded image)") { a.icon = t.value.trim(); save(); refreshClass(true); } }
+    if (t.dataset.f === "icon" && t.value !== "(uploaded image)") { a.icon = t.value.trim(); save(); refreshClass(true); }
   }
 });
 main.addEventListener("change", e => {
   const t = e.target;
   if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); refreshZoneGrid(); return; }
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
-  if (ui.tab === "zones" && t.dataset.zname) return;
+  if (t.id === "presetSel") { ui.preset = t.value; $("#presetNote").textContent = PRESETS[t.value].note; return; }
+  const br = t.closest("[data-bar]");
+  if (br && t.dataset.bf) {
+    const b = state.bars.find(x => x.n === +br.dataset.bar);
+    if (t.dataset.bf === "show") b.show = t.checked;
+    else if (t.dataset.bf === "orient") b.orient = t.value;
+    else b[t.dataset.bf] = +t.value;
+    ui.barsDone = true; saveUI(); normalizeBarOrigin(); save(); renderBars(); return;
+  }
   const cls = curClass(); if (!cls) return;
-  if (t.id === "className") return;
   if (t.id === "newAbZone") { ui.addZone = t.value; return; }
   const ed = t.closest("[data-editor]");
   if (ed && t.dataset.f === "zone") { cls.abilities.find(x => x.id === ed.dataset.editor).zone = t.value || null; save(); refreshClass(); return; }
@@ -879,50 +1076,44 @@ main.addEventListener("change", e => {
   }
   if (t.dataset.file) { const f = t.files[0]; if (f) setIconFromFile(cls, t.dataset.file, f); }
 });
-// keyboard: Enter/Space on Edit spans, Escape to deselect
 document.addEventListener("keydown", e => {
+  if (ui.capture) return;
   if (e.key === "Escape" && (ui.sel || ui.editing) && !document.querySelector("dialog[open]")) { ui.sel = null; ui.editing = null; ui.addCell = null; if (curClass()) refreshClass(); }
   if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.edit) { e.preventDefault(); e.target.click(); }
-  if ((e.key === "Enter") && e.target.dataset?.open) e.target.click();
+  if (e.key === "Enter" && e.target.dataset?.open) e.target.click();
 });
 
-/* drag & drop (desktop) */
+/* drag & drop of abilities (desktop) */
 let dragId = null;
 main.addEventListener("dragstart", e => {
-  const el = e.target.closest("[data-ab]"); if (!el || ui.tab === "zones" || ui.tab === "overview") return;
+  const el = e.target.closest("[data-ab]"); if (!el || !curClass()) return;
   dragId = el.dataset.ab; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId);
   ui.sel = dragId; setTimeout(() => refreshClass(true), 0);
 });
 main.addEventListener("dragover", e => {
+  const d = e.target.closest("[data-drop]"); if (d && e.dataTransfer.types.includes("Files")) { e.preventDefault(); d.classList.add("over"); return; }
   if (!dragId) return;
   const c = e.target.closest(".cell, .zgroup"); if (!c) return;
   e.preventDefault(); main.querySelectorAll(".dragover").forEach(x => x.classList.remove("dragover")); if (c.classList.contains("cell")) c.classList.add("dragover");
 });
+main.addEventListener("dragleave", e => { e.target.closest?.("[data-drop]")?.classList.remove("over"); });
 main.addEventListener("drop", e => {
+  const d = e.target.closest("[data-drop]");
+  if (d) { const f = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith("image/")); if (f) { e.preventDefault(); setIconFromFile(curClass(), d.dataset.drop, f); } return; }
   if (!dragId) return;
   const cls = curClass(); const a = cls?.abilities.find(x => x.id === dragId); dragId = null;
   if (!a) return;
   e.preventDefault();
   const cell = e.target.closest(".cell");
   if (cell) moveTo(cls, a, cell.dataset.cell);
-  else if (e.target.closest(".zgroup")) a.cell = null; // drop on list = take off bar
+  else if (e.target.closest(".zgroup")) a.cell = null;
   ui.sel = null; save(); refreshClass();
 });
 main.addEventListener("dragend", () => { if (dragId) { dragId = null; ui.sel = null; refreshClass(true); } });
-
-/* icon images: drop / paste / browse -> 56px data URI */
-main.addEventListener("dragover", e => { const d = e.target.closest("[data-drop]"); if (d && e.dataTransfer.types.includes("Files")) { e.preventDefault(); d.classList.add("over"); } });
-main.addEventListener("dragleave", e => { const d = e.target.closest("[data-drop]"); d?.classList.remove("over"); });
-main.addEventListener("drop", e => {
-  const d = e.target.closest("[data-drop]"); if (!d) return;
-  const f = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith("image/"));
-  if (f) { e.preventDefault(); setIconFromFile(curClass(), d.dataset.drop, f); }
-});
 document.addEventListener("paste", e => {
-  const d = document.activeElement?.closest?.("[data-drop]") || (ui.editing && document.activeElement?.closest?.("[data-editor]"));
-  if (!d) return;
-  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
-  if (!item) return;
+  if (!ui.editing) return;
+  const d = document.activeElement?.closest?.("[data-drop], [data-editor]"); if (!d) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/")); if (!item) return;
   e.preventDefault(); setIconFromFile(curClass(), ui.editing, item.getAsFile());
 });
 function setIconFromFile(cls, abId, file) {
@@ -943,15 +1134,159 @@ function hslHex(h, s, l) {
   return "#" + f(0) + f(8) + f(4);
 }
 
-/* ---------------- export / import ---------------- */
+/* ---------------- WoW keybind import / export ---------------- */
+// Parse bindings-cache.wtf: lines like "bind SHIFT-Q MULTIACTIONBAR1BUTTON5"
+function parseWtf(text) {
+  const binds = {}; let total = 0;
+  const re = /^\s*bind\s+(\S+)\s+(\S+)\s*$/i;
+  text.split(/\r?\n/).forEach(line => {
+    const m = re.exec(line); if (!m) return;
+    const key = m[1].toUpperCase(), cmd = m[2].toUpperCase();
+    let slot = null, mm;
+    if ((mm = /^ACTIONBUTTON(\d+)$/.exec(cmd))) slot = "1-" + mm[1];
+    else if ((mm = /^MULTIACTIONBAR(\d)BUTTON(\d+)$/.exec(cmd))) slot = (+mm[1] + 1) + "-" + mm[2];
+    if (!slot) return;
+    const [b, i] = slot.split("-").map(Number); if (b < 1 || b > 8 || i < 1 || i > 12) return;
+    if (!binds[slot]) { binds[slot] = key; total++; } // WoW allows two keys per button; keep the first
+  });
+  return { binds, total };
+}
+function openWowImport() { $("#wowText").value = ""; $("#wowFile").value = ""; $("#wowMsg").textContent = ""; $("#dlgWow").showModal(); }
+$("#wowCancel").onclick = () => $("#dlgWow").close();
+$("#wowFile").onchange = async e => { const f = e.target.files[0]; if (f) { $("#wowText").value = await f.text(); previewWow(); } };
+$("#wowText").oninput = () => previewWow();
+function previewWow() {
+  const { binds, total } = parseWtf($("#wowText").value);
+  const bars = [...new Set(Object.keys(binds).map(k => +k.split("-")[0]))].sort((a, b) => a - b);
+  $("#wowMsg").style.color = total ? "var(--ok)" : "var(--muted)";
+  $("#wowMsg").textContent = total ? `Found ${total} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds found yet.";
+}
+$("#wowGo").onclick = () => {
+  const { binds, total } = parseWtf($("#wowText").value);
+  if (!total) { $("#wowMsg").style.color = "var(--danger)"; $("#wowMsg").textContent = "That text has no action bar keybinds. Pick your bindings-cache.wtf file."; return; }
+  state.binds = binds;
+  // show any bar that has keys
+  Object.keys(binds).forEach(k => { const b = state.bars.find(x => x.n === +k.split("-")[0]); if (b && !b.show) { b.show = true; } });
+  ui.barsDone = true; saveUI(); save(); $("#dlgWow").close(); render(); toast(`Imported ${total} keybinds.`);
+};
+// Export as /run lines that each fit WoW's 255-character chat limit.
+function wowLines() {
+  const pairs = Object.entries(state.binds).map(([slot, key]) => { const [b, i] = slot.split("-"); return [key, BAR_CMD(+b) + i]; });
+  const head = '/run local function f(k,c)for _,o in ipairs({GetBindingKey(c)})do SetBinding(o)end SetBinding(k,c)end ';
+  const lines = []; let cur = head;
+  pairs.forEach(([k, c]) => {
+    const part = `f(${JSON.stringify(k)},"${c}")`;
+    if ((cur + part).length > 255) { lines.push(cur.trim()); cur = head; }
+    cur += part;
+  });
+  if (cur !== head) lines.push(cur.trim());
+  lines.push("/run SaveBindings(GetCurrentBindingSet()) print(\"Keybind Atlas: keybinds saved\")");
+  return lines;
+}
+function openWowExport() { $("#macroText").textContent = wowLines().join("\n"); $("#dlgMacro").showModal(); }
+$("#macroClose").onclick = () => $("#dlgMacro").close();
+$("#macroCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("#macroText").textContent); toast("Copied."); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("#macroText")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
+};
+
+/* ---------------- Edit Mode layout import ----------------
+   Text format (one long line of space-separated tokens):
+     version layoutType recordCount, then per record:
+     system index isDefaultPosition point relativePoint relativeTo offsetX offsetY -1 settings
+   system 0 = action bars; index 0..7 = Action Bar 1..8.
+   settings = pairs of characters (setting id, value), each = charCode - 35.
+   Action bar settings: 0 orientation, 1 rows/columns, 2 icon count, 3 icon size, 4 padding, 5 visibility (3 = hidden).
+   Anchor points: 0 TOPLEFT 1 TOP 2 TOPRIGHT 3 LEFT 4 CENTER 5 RIGHT 6 BOTTOMLEFT 7 BOTTOM 8 BOTTOMRIGHT. */
+const FRAME_BAR = { MainActionBar: 1, MainMenuBar: 1, MultiBarBottomLeft: 2, MultiBarBottomRight: 3, MultiBarRight: 4, MultiBarLeft: 5, MultiBar5: 6, MultiBar6: 7, MultiBar7: 8 };
+const num = t => /^-?\d+(\.\d+)?$/.test(t);
+function parseEditMode(text) {
+  const tk = text.trim().split(/\s+/);
+  if (tk.length < 12 || !num(tk[0])) throw new Error("That doesn't look like an Edit Mode layout. Paste the text WoW copies when you share a layout.");
+  let i = 3; const recs = [];
+  while (i + 9 <= tk.length) {
+    const r = { sys: +tk[i], idx: +tk[i + 1], def: +tk[i + 2], pt: +tk[i + 3], rpt: +tk[i + 4], rel: tk[i + 5], x: parseFloat(tk[i + 6]), y: parseFloat(tk[i + 7]) };
+    i += 9; // skip the -1
+    r.settings = {};
+    if (i < tk.length && !num(tk[i])) {
+      const s = tk[i++];
+      for (let j = 0; j + 1 < s.length; j += 2) r.settings[s.charCodeAt(j) - 35] = s.charCodeAt(j + 1) - 35;
+    }
+    if ([r.sys, r.idx, r.pt, r.rpt].some(v => !Number.isFinite(v))) throw new Error("Couldn't read that layout. Make sure you pasted the whole thing.");
+    recs.push(r);
+  }
+  const bars = recs.filter(r => r.sys === 0 && r.idx >= 0 && r.idx <= 7);
+  if (!bars.length) throw new Error("No action bars found in that layout.");
+  return bars.map(r => ({ n: r.idx + 1, def: r.def === 1, pt: r.pt, rpt: r.rpt, rel: r.rel, x: r.x, y: r.y,
+    orient: r.settings[0] === 1 ? "v" : "h", lines: Math.max(1, r.settings[1] ?? 1), icons: Math.min(12, Math.max(6, r.settings[2] ?? 12)),
+    scale: (50 + 10 * (r.settings[3] ?? 5)) / 100, pad: r.settings[4] ?? 2, hidden: r.settings[5] === 3 }));
+}
+// Resolve anchors to screen rectangles, then snap to a button-sized grid.
+function editModeToBars(eb, W, H) {
+  const FX = [0, .5, 1, 0, .5, 1, 0, .5, 1], FY = [1, 1, 1, .5, .5, .5, 0, 0, 0];
+  const byN = {}; eb.forEach(b => byN[b.n] = b);
+  const rect = {}, busy = new Set();
+  function size(b) {
+    const per = Math.ceil(b.icons / b.lines), used = Math.ceil(b.icons / per);
+    const cols = b.orient === "h" ? per : used, rows = b.orient === "h" ? used : per;
+    const s = 45 * b.scale; return { w: cols * s + (cols - 1) * b.pad, h: rows * s + (rows - 1) * b.pad, cols, rows };
+  }
+  function resolve(b) {
+    if (rect[b.n]) return rect[b.n];
+    const { w, h } = size(b);
+    let rel = { l: 0, b: 0, w: W, h: H };
+    const rn = FRAME_BAR[b.rel];
+    if (rn && byN[rn] && rn !== b.n && !busy.has(rn)) { busy.add(b.n); rel = resolve(byN[rn]); busy.delete(b.n); }
+    else if (b.rel !== "UIParent") rel = { l: W / 2, b: H / 2, w: 0, h: 0 }; // anchored to a non-bar frame: assume screen center
+    const ax = rel.l + FX[b.rpt] * rel.w + b.x, ay = rel.b + FY[b.rpt] * rel.h + b.y;
+    return rect[b.n] = { l: ax - FX[b.pt] * w, b: ay - FY[b.pt] * h, w, h };
+  }
+  eb.forEach(resolve);
+  const main = byN[1] || eb[0]; const unit = 45 * main.scale + main.pad;
+  const placed = [];
+  const out = PRESETS.default.bars().map(d => {
+    const b = byN[d.n]; if (!b) return { ...d, show: false };
+    const r = rect[d.n]; const g = size(b);
+    let gx = Math.round(r.l / unit), gy = Math.round((H - (r.b + r.h)) / unit);
+    const show = !b.hidden && (d.n === 1 || !b.def);
+    if (show) {
+      const hit = (x, y) => placed.some(p => x < p.x + p.w && x + g.cols > p.x && y < p.y + p.h && y + g.rows > p.y);
+      let guard = 0; while (hit(gx, gy) && guard++ < 60) gy++;
+      placed.push({ x: gx, y: gy, w: g.cols, h: g.rows });
+    }
+    return { n: d.n, show, orient: b.orient, lines: Math.min(12, b.lines), icons: b.icons, x: gx, y: gy };
+  });
+  const mx = Math.min(...out.map(b => b.x)), my = Math.min(...out.map(b => b.y));
+  out.forEach(b => { b.x -= mx; b.y -= my; });
+  return out;
+}
+$("#editCancel").onclick = () => $("#dlgEdit").close();
+$("#editText").oninput = () => {
+  const m = $("#editMsg");
+  try {
+    const eb = parseEditMode($("#editText").value);
+    const shown = eb.filter(b => !b.hidden && (b.n === 1 || !b.def)).map(b => b.n);
+    m.style.color = "var(--ok)";
+    m.textContent = `Found ${eb.length} action bars. Bars ${shown.join(", ")} will be shown (bars left in their default spot start hidden; turn them on afterwards if you use them).`;
+  } catch (err) { m.style.color = $("#editText").value.trim() ? "var(--danger)" : "var(--muted)"; m.textContent = $("#editText").value.trim() ? err.message : ""; }
+};
+$("#editGo").onclick = () => {
+  try {
+    const [W, H] = $("#editScreen").value.split("x").map(Number);
+    state.bars = editModeToBars(parseEditMode($("#editText").value), W, H);
+    ui.barsDone = true; saveUI(); save(); $("#dlgEdit").close(); render(); toast("Bars imported from Edit Mode.");
+  } catch (err) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = err.message; }
+};
+
+/* ---------------- JSON export / import ---------------- */
 $("#btnExport").onclick = () => {
   const data = JSON.stringify(state, null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = "layout.json"; document.body.appendChild(a); a.click(); a.remove();
+  a.download = "keybind-atlas.json"; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   ui.exported = true; saveUI(); if (ui.guide !== "hidden") render();
-  toast("Exported layout.json");
+  toast("Exported keybind-atlas.json");
 };
 $("#btnHelp").onclick = () => { ui.guide = ""; saveUI(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
 $("#btnImport").onclick = () => { $("#importErr").textContent = ""; $("#importText").value = ""; $("#importFile").value = ""; $("#dlgImport").showModal(); };
@@ -959,15 +1294,16 @@ $("#importCancel").onclick = () => $("#dlgImport").close();
 $("#importFile").onchange = async e => { const f = e.target.files[0]; if (f) $("#importText").value = await f.text(); };
 $("#importGo").onclick = () => {
   try {
-    const s = normalize(JSON.parse($("#importText").value));
-    state = s; ui.tab = "zones"; ui.sel = ui.editing = null; save(); render(); $("#dlgImport").close(); toast("Layout imported.");
+    state = normalize(JSON.parse($("#importText").value));
+    ui.tab = "bars"; ui.sel = ui.editing = null; ui.barsDone = true; saveUI(); save(); render(); $("#dlgImport").close(); toast("Layout imported.");
   } catch (err) { $("#importErr").textContent = err instanceof SyntaxError ? "That isn't valid JSON. Paste the whole exported file." : err.message; }
 };
 
 /* ---------------- boot ---------------- */
 (function boot() {
   loadUI();
-  let local = null; try { local = loadLocal(); } catch (e) {}
+  ui.capture = null;
+  const local = loadLocal();
   if (local) { state = local; setStatus("Saved in this browser"); }
   else { state = blankState(); setStatus("Nothing saved yet"); }
   render();
