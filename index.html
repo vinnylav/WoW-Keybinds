@@ -274,6 +274,11 @@ input[type=text], select, textarea {
 .blabel { position: absolute; transform: translate(-50%, -50%); pointer-events: none; font: 700 11px var(--f-fantasy); color: #fff3cf; background: rgba(0,0,0,.7); padding: 0 5px; border-radius: 3px; white-space: nowrap; opacity: .85; }
 .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(28px, min(54px, calc(500px / var(--rows))))); grid-template-rows: repeat(var(--rows), auto); width: max-content; max-width: none; }
 .grid-wrap { max-width: 100%; }
+.map-head { font: 600 11px var(--f-fantasy); color: var(--accent); text-transform: uppercase; letter-spacing: .08em; margin: 4px 0 -4px; }
+.grid.map { pointer-events: none; }
+.grid.map .cell.zoned { background: color-mix(in srgb, var(--z) 78%, #000); }
+.grid.map .cell .key { opacity: .7; }
+.grid.map .zlabel { background: none; box-shadow: none; padding: 0; font: 700 15px/1.05 var(--f-fantasy); white-space: normal; overflow: visible; text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px #000; }
 .grid.has-caps { margin: 0 78px 8px; }
 .grid-wrap:has(.grid.has-caps.cap-top) { padding-top: 60px; }
 .endcap { position: absolute; width: 84px; transform: translate(-100%, -100%) translate(-4px, 6px); pointer-events: none; filter: drop-shadow(0 2px 3px #000); z-index: 1; }
@@ -493,7 +498,7 @@ function save() {
   }, 250);
 }
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
-function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
 function setStatus(t) { $("#status").textContent = t; }
 
@@ -619,8 +624,9 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
   const selAb = cls && sel ? cls.abilities.find(a => a.id === sel) : null;
   const byCell = {};
   if (cls) cls.abilities.forEach(a => { if (a.cell) byCell[a.cell] = a; });
-  const capBar = state.endcaps !== false && !mini && L.bars.find(b => b.n === 1 && state.bars.find(x => x.n === 1).orient === "h");
-  let h = `<div class="grid ${capBar ? "has-caps" + (capBar.y + capBar.h < 2 ? " cap-top" : "") : ""} ${mini ? "fit" : ""} ${mode === "bars" ? "bars-mode" : ""} ${mode === "zones" ? "painting" : ""}" style="--cols:${L.W};--rows:${L.H}" data-grid>`;
+  const map = mode === "map";
+  const capBar = state.endcaps !== false && !mini && !map && L.bars.find(b => b.n === 1 && capsFit(L, b));
+  let h = `<div class="grid ${capBar ? "has-caps" + (capBar.y + capBar.h < 2 ? " cap-top" : "") : ""} ${mini ? "fit" : ""} ${mode === "bars" ? "bars-mode" : ""} ${mode === "zones" ? "painting" : ""} ${map ? "map" : ""}" style="--cols:${L.W};--rows:${L.H}" data-grid>`;
   L.cells.forEach(({ id, bar, i, r, c }) => {
     const z = zoneById(state.cells[id]);
     const a = byCell[id];
@@ -648,8 +654,9 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
     if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong zone">!</span>`;
     h += `</button>`;
   });
-  h += endCapsHTML(L, mini);
-  if (showLabels) h += `<div class="zlabels">${zoneLabels(L)}</div>`;
+  h += endCapsHTML(L, mini || map);
+  if (showLabels) h += `<div class="zlabels">${zoneLabels(L, map)}</div>`;
+  if (map) h = h.replace(/data-cell="/g, 'tabindex="-1" data-mapcell="');
   if (mode === "bars") h += `<div class="zlabels">${L.bars.map(b => `<span class="blabel" style="left:${(b.x + b.w / 2) / L.W * 100}%;top:${(b.y + b.h / 2) / L.H * 100}%">Bar ${b.n}</span>`).join("")}</div>`;
   return h + `</div>`;
 }
@@ -671,13 +678,15 @@ const CAP_SVG = (() => {
     <path d="M66 130 C68 120 74 114 82 112 M76 130 C78 122 84 118 92 117" fill="none" stroke="#1b1a18" stroke-width="1.6"/>
   </svg>`;
 })();
+// Caps only make sense on a one-row Bar 1 with nothing right beside it.
+const capsFit = (L, b) => state.bars.find(x => x.n === 1).orient === "h" && b.h === 1 && !L.at[b.y + "," + (b.x - 1)] && !L.at[b.y + "," + (b.x + b.w)];
 function endCapsHTML(L, mini) {
   const b = state.endcaps !== false && !mini ? L.bars.find(x => x.n === 1) : null;
-  if (!b || state.bars.find(x => x.n === 1).orient !== "h") return "";
+  if (!b || !capsFit(L, b)) return "";
   const fx = v => `calc(6px + (100% - 12px) * ${v / L.W})`, fy = v => `calc(6px + (100% - 12px) * ${v / L.H})`;
   return `<span class="endcap l" style="left:${fx(b.x)};top:${fy(b.y + b.h)}">${CAP_SVG}</span><span class="endcap r" style="left:${fx(b.x + b.w)};top:${fy(b.y + b.h)}">${CAP_SVG}</span>`;
 }
-function zoneLabels(L) {
+function zoneLabels(L, map = false) {
   const seen = new Set(); let out = "";
   L.cells.forEach(({ id }) => {
     const zid = state.cells[id]; if (!zid || seen.has(id)) return;
@@ -689,7 +698,7 @@ function zoneLabels(L) {
     const z = zoneById(zid); if (!z) return;
     const minR = Math.min(...comp.map(p => p[0])), maxR = Math.max(...comp.map(p => p[0]));
     const minC = Math.min(...comp.map(p => p[1])), maxC = Math.max(...comp.map(p => p[1]));
-    const cy = minR / L.H * 100, cx = ((minC + maxC + 1) / 2) / L.W * 100;
+    const cy = (map ? (minR + maxR + 1) / 2 : minR) / L.H * 100, cx = ((minC + maxC + 1) / 2) / L.W * 100;
     const w = (maxC - minC + 1) / L.W * 100;
     out += `<span class="zlabel" title="${esc(z.name)}" style="--zc:${z.color};left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / L.W) - 0.3}%">${esc(z.name)}</span>`;
   });
@@ -840,7 +849,7 @@ function planBarHTML(title) {
         <button data-plan="abilities" aria-pressed="${!z}">Place abilities</button>
         <button data-plan="zones" aria-pressed="${z}">Edit zones</button>
       </div>
-      <label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Zone names</label>
+      ${z ? `<label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Zone names</label>` : `<label class="inline"><input type="checkbox" id="chkMap" ${ui.map !== false ? "checked" : ""}> Zone map</label>`}
     </div>
   </div>`;
 }
@@ -965,7 +974,8 @@ function renderClass() {
     ${guideHTML()}
     ${planBarHTML(esc(cls.name))}
     <p class="hint">Add an ability on the right and pick its zone; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labels })}</div>
+    ${ui.map !== false && state.zones.length ? `<div class="map-head">Zones</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: true })}</div><div class="map-head">${esc(cls.name)}</div>` : ""}
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels })}</div>
     ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their zones</button></div>` : ""}
     ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
     <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
@@ -1031,7 +1041,7 @@ function editorHTML(a, zopts) {
 }
 function refreshClass(gridOnly = false) {
   const cls = curClass(); if (!cls) return render();
-  if (gridOnly) refreshGrid({ cls, sel: ui.sel, showLabels: ui.labels });
+  if (gridOnly) refreshGrid({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels });
   else renderClass();
 }
 
@@ -1283,6 +1293,7 @@ main.addEventListener("input", e => {
 main.addEventListener("toggle", e => { if (e.target.id === "manual") ui.manualOpen = e.target.open; }, true);
 main.addEventListener("change", e => {
   const t = e.target;
+  if (t.id === "chkMap") { ui.map = t.checked; saveUI(); refreshClass(); return; }
   if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); if (ui.tab === "zones") refreshZoneGrid(); else if (curClass()) refreshClass(true); else render(); return; }
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
   if (t.id === "firstClassKit" || t.id === "newClassKit") { const n = t.id.replace("Kit", "Name"); $("#" + n).placeholder = t.value && t.value !== "-" ? `${t.value} (or a spec name)` : "Name or spec, e.g. Ret Paladin"; return; }
