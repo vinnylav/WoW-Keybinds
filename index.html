@@ -284,6 +284,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <div class="hdr-actions">
     <span class="status" id="status"></span>
     <button id="btnHelp" class="small ghost">How it works</button>
+    <button id="btnReset" class="small ghost danger">Start over</button>
     <button id="btnExport" class="small">Export JSON</button>
     <button id="btnImport" class="small">Import JSON</button>
   </div>
@@ -1348,6 +1349,14 @@ $("#btnExport").onclick = () => {
   toast("Exported keybind-atlas.json");
 };
 $("#btnHelp").onclick = () => $("#dlgHelp").showModal();
+$("#btnReset").onclick = async () => {
+  if (!await confirmBox("Start over?", "This erases your bars, keybinds, zones and every class saved in this browser and takes you back to the welcome screen. Export JSON first if you want a backup.", "Erase and start over")) return;
+  clearTimeout(saveTimer); saveTimer = null;
+  try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(UI_KEY); } catch (e) {}
+  state = blankState();
+  ui = { tab: "bars", brush: null, sel: null, editing: null, labels: true, labelsClass: false, capture: null, guide: "", barsDone: false, exported: false, cls: null };
+  setStatus("Nothing saved yet"); render(); window.scrollTo({ top: 0 }); toast("Everything was reset.");
+};
 $("#helpClose").onclick = () => $("#dlgHelp").close();
 $("#btnImport").onclick = () => { $("#importErr").textContent = ""; $("#importText").value = ""; $("#importFile").value = ""; $("#dlgImport").showModal(); };
 $("#importCancel").onclick = () => $("#dlgImport").close();
