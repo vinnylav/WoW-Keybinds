@@ -396,7 +396,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <p class="hint">No addon needed. Log into the character, paste this one line into the chat box and press Enter. The first time, WoW may ask you to allow scripts; say yes and paste it again.</p>
   <pre class="macro" id="gameLines"></pre>
   <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy line</button></div>
-  <p class="hint">A moment later the chat box reopens with a long line starting <code>/k;</code>, already selected. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error. Press Ctrl+C, then Esc (if you press Enter by mistake, nothing is sent), and paste it here:</p>
+  <p class="hint">A text box appears at the top of your screen with a long line starting <code>/k;</code>. Click it (that selects everything), press Ctrl+C, then paste it here. Type <code>/reload</code> afterwards to get rid of the box. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
   <textarea id="gameText" rows="6" placeholder="/k;1Heroic Strike;2Charge;3Rend…"></textarea>
   <div class="row" style="margin-top:6px">
     <label class="inline" for="gameTarget">Put them in</label>
@@ -1653,7 +1653,7 @@ $("#editGo").onclick = () => {
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
-const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)t=n and t..\";\"..s..n or t end RunNextFrame(function()e=ChatFrame1EditBox e:SetMaxLetters(0)e:SetMaxBytes(0)ChatFrame_OpenChat(t)e:HighlightText()end)"];
+const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)t=n and t..\";\"..s..n or t end e=CreateFrame(\"EditBox\",nil,UIParent,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetFocus()"];
 function openGameImport() {
   $("#gameLines").textContent = GAME_LINES.join("\n");
   $("#gameText").value = ""; $("#gameMsg").textContent = "";
@@ -1672,6 +1672,8 @@ const slotToCell = s => {
   if (s >= 73 && s <= 84) return "1-" + (s - 72); // stance / form bar (Battle Stance, Cat Form, Stealth) shows on Bar 1
   return null;
 };
+// Trade skills people keep on their bars; not useful for planning class keys.
+const PROFESSION_SPELLS = new Set(["first aid", "cooking", "fishing", "blacksmithing", "smelting", "find minerals", "find herbs", "find fish", "mining", "herbalism", "skinning", "tailoring", "leatherworking", "engineering", "enchanting", "disenchant", "alchemy", "jewelcrafting", "inscription", "prospecting", "milling", "basic campfire", "pick lock", "survey", "archaeology"]);
 // Which Forever class has the most of these spells.
 function guessClassFromSpells(names) {
   let best = null, bn = 0; const low = new Set(names.map(n => n.toLowerCase()));
@@ -1685,6 +1687,7 @@ function parseGame(text) {
     one[1].split(";").forEach(part => {
       const m = /^(\d+)(.+)$/.exec(part.trim()); if (!m) return;
       const cell = slotToCell(+m[1]); if (!cell || out.slots.some(x => x.cell === cell)) return;
+      if (PROFESSION_SPELLS.has(m[2].trim().toLowerCase())) { out.skipped = (out.skipped || 0) + 1; return; }
       out.slots.push({ cell, kind: "spell", spellId: null, name: m[2].trim() });
     });
     out.cls = guessClassFromSpells(out.slots.map(x => x.name)) || "";
@@ -1707,7 +1710,7 @@ $("#gameText").oninput = () => {
   if (!$("#gameText").value.trim()) { m.textContent = ""; return; }
   const n = g.slots.length + g.book.length;
   m.style.color = n ? "var(--ok)" : "var(--danger)";
-  m.textContent = n ? `Found ${g.cls ? "a " + g.cls : "a character"}: ${g.slots.length} things on your bars${g.book.length ? `, ${g.book.length} spells in your spellbook` : ""}${Object.keys(g.binds).length ? `, ${Object.keys(g.binds).length} keybinds` : ""}.` : "That doesn't look like the text from the game. It should start with /k;";
+  m.textContent = n ? `Found ${g.cls ? "a " + g.cls : "a character"}: ${g.slots.length} things on your bars${g.skipped ? ` (skipped ${g.skipped} profession spell${g.skipped > 1 ? "s" : ""})` : ""}${g.book.length ? `, ${g.book.length} spells in your spellbook` : ""}${Object.keys(g.binds).length ? `, ${Object.keys(g.binds).length} keybinds` : ""}.` : "That doesn't look like the text from the game. It should start with /k;";
 };
 $("#gameGo").onclick = () => {
   const g = parseGame($("#gameText").value);
