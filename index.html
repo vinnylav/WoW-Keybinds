@@ -288,6 +288,8 @@ input[type=text], select, textarea {
 .shot-box b { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid #1a1408; cursor: grab; transform: translate(-50%, -50%); }
 .shot-box b[data-h=tl] { left: 0; top: 0; } .shot-box b[data-h=br] { left: 100%; top: 100%; }
 .linkish { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.share-qr { display: grid; justify-items: center; gap: 4px; margin: 4px 0 10px; }
+.share-qr svg { width: min(260px, 70vw); height: auto; background: #fff; border-radius: 6px; }
 .found-sw { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .grid.has-caps { margin: 0 78px 8px; }
 .grid-wrap:has(.grid.has-caps.cap-top) { padding-top: 60px; }
@@ -345,6 +347,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
     <span class="status" id="status"></span><span class="status" id="ver" style="opacity:.55"></span>
     <button id="btnHelp" class="small ghost">How it works</button>
     <button id="btnReset" class="small ghost danger">Start over</button>
+    <button id="btnShare" class="small" title="Open this plan on another device">Share link</button>
     <button id="btnExport" class="small">Export JSON</button>
     <button id="btnImport" class="small">Import JSON</button>
   </div>
@@ -422,6 +425,19 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
+<dialog id="dlgShare">
+  <h2>Open on another device</h2>
+  <p class="hint">This link holds your whole plan. Open it on your phone or another PC and it loads there. It's a copy, not a live sync: after changes, share a new link.</p>
+  <div id="shareQR" class="share-qr"></div>
+  <textarea id="shareLink" rows="3" readonly></textarea>
+  <p class="hint" id="shareSize"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="shareNative" class="ghost" hidden>Send…</button>
+    <button id="shareCopy">Copy link</button>
+    <button id="shareClose" class="primary">Done</button>
+  </div>
+</dialog>
+
 <dialog id="dlgGame">
   <h2>Import abilities from the game</h2>
   <p class="hint">No addon needed. Log into the character, paste this one line into the chat box and press Enter. The first time, WoW may ask you to allow scripts; say yes and paste it again.</p>
@@ -462,6 +478,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
 </dialog>
 
 <script src="data/forever-spells.js"></script>
+<script src="assets/qrcode.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -549,7 +566,7 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 15";
+const BUILD = "Nov 8 · 16";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -1874,6 +1891,40 @@ $("#importGo").onclick = () => {
   } catch (err) { $("#importErr").textContent = err instanceof SyntaxError ? "That isn't valid JSON. Paste the whole exported file." : err.message; }
 };
 
+/* ---------------- share link ---------------- */
+// The plan rides in the URL hash (#p=...), deflated and base64url'd. The hash never reaches a server.
+const b64u = bytes => { let t = ""; bytes.forEach(x => t += String.fromCharCode(x)); return btoa(t).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const unb64u = str => Uint8Array.from(atob(str.replace(/-/g, "+").replace(/_/g, "/")), ch => ch.charCodeAt(0));
+async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function packPlan(s) { return b64u(await pipeBytes(new TextEncoder().encode(JSON.stringify(s)), new CompressionStream("deflate-raw"))); }
+async function unpackPlan(str) { return JSON.parse(new TextDecoder().decode(await pipeBytes(unb64u(str), new DecompressionStream("deflate-raw")))); }
+$("#btnShare").onclick = async () => {
+  const url = location.origin + location.pathname + "#p=" + await packPlan(state);
+  $("#shareLink").value = url;
+  $("#shareSize").textContent = url.length > 8000 ? "This link is long. Some chat apps cut long links, so copy it into a note or email instead." : "";
+  // A QR code only scans reliably up to a couple of thousand characters.
+  let qr = "";
+  if (url.length <= 2300 && window.qrcode) { try { const q = qrcode(0, "L"); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 3, margin: 3, scalable: true }); } catch (e) {} }
+  $("#shareQR").innerHTML = qr ? qr + `<p class="hint">Scan with your phone's camera.</p>` : `<p class="hint">Your plan is too big for a QR code, so send yourself the link instead.</p>`;
+  $("#shareNative").hidden = !navigator.share;
+  $("#dlgShare").showModal(); $("#shareLink").select();
+};
+$("#shareCopy").onclick = async () => { $("#shareLink").select(); try { await navigator.clipboard.writeText($("#shareLink").value); } catch (e) { document.execCommand("copy"); } toast("Link copied."); };
+$("#shareNative").onclick = () => navigator.share({ title: "Keybind Atlas plan", url: $("#shareLink").value }).catch(() => {});
+$("#shareClose").onclick = () => $("#dlgShare").close();
+async function loadSharedPlan() {
+  const m = location.hash.match(/^#p=([\w-]+)/); if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  let incoming;
+  try { incoming = normalize(await unpackPlan(m[1])); }
+  catch (e) { toast("That share link is broken or cut off. Copy the whole link and try again."); return; }
+  const has = state.classes.length || Object.keys(state.cells).length;
+  if (has && !(await confirmBox("Load the shared plan?", `It has ${incoming.classes.length} class${incoming.classes.length === 1 ? "" : "es"}. It replaces what's saved in this browser now. Export JSON first if you want to keep this one.`, "Load it"))) return;
+  state = incoming; ui.sel = ui.editing = null; ui.barsDone = true; ui.cls = state.classes[0]?.id || null; ui.tab = state.classes.length ? "plan" : "bars";
+  saveUI(); save(); render(); toast("Shared plan loaded.");
+}
+window.addEventListener("hashchange", loadSharedPlan);
+
 /* ---------------- boot ---------------- */
 (function boot() {
   loadUI();
@@ -1882,6 +1933,7 @@ $("#importGo").onclick = () => {
   if (local) { state = local; setStatus("Saved in this browser"); }
   else { state = blankState(); setStatus("Nothing saved yet"); }
   render();
+  loadSharedPlan();
 })();
 </script>
 </body>
