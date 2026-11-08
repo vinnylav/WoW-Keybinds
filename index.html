@@ -346,13 +346,13 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
 </dialog>
 
 <dialog id="dlgShot" style="width:min(920px, calc(100vw - 32px))">
-  <h2>Zones from a picture</h2>
-  <p class="hint">Use a picture of your bars with each zone colored in, like a plan made in an image editor. Drop it here, paste it (Ctrl+V), or <label class="linkish">browse<input type="file" id="shotFile" accept="image/*" hidden></label>.</p>
+  <h2>Categories from a picture</h2>
+  <p class="hint">Use a picture of your bars with each category colored in, like a plan made in an image editor. Drop it here, paste it (Ctrl+V), or <label class="linkish">browse<input type="file" id="shotFile" accept="image/*" hidden></label>.</p>
   <div id="shotStage" class="shot-stage"></div>
   <p class="hint" id="shotMsg">Then drag the two gold corners so the grid sits on your buttons: the top-left of the first button and the bottom-right of the last. The grid uses your current bar layout, so set that up first.</p>
   <div class="row"><button class="primary" id="shotRead" disabled>Read colors</button><label class="inline">Match colors <input type="range" id="shotTol" min="10" max="70" value="30" aria-label="Color tolerance"> loosely</label></div>
   <div id="shotFound" class="row" style="flex-wrap:wrap"></div>
-  <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="ghost" id="shotCancel">Cancel</button><button class="primary" id="shotApply" disabled>Repaint my zones</button></div>
+  <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="ghost" id="shotCancel">Cancel</button><button class="primary" id="shotApply" disabled>Repaint my categories</button></div>
 </dialog>
 <dialog id="dlgEdit">
   <h2>Import from WoW</h2>
@@ -427,8 +427,8 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <h2>How it works</h2>
   <ol class="help-steps">
     <li><b>Bars &amp; keys.</b> Import your Edit Mode layout and keybinds from WoW, or use the default Blizzard UI. Click a button and press a key to change it.</li>
-    <li><b>Zones.</b> Paint areas of your bars (Builders, Interrupt, Defense…). The same zones apply to every class.</li>
-    <li><b>Abilities.</b> Pick a class, add its abilities and choose each one's zone. They land in the same spot on every class, so your muscle memory carries over.</li>
+    <li><b>Categories.</b> Paint areas of your bars (Builders, Interrupt, Defense…). The same categories apply to every class.</li>
+    <li><b>Abilities.</b> Pick a class, add its abilities and choose each one's category. They land in the same spot on every class, so your muscle memory carries over.</li>
   </ol>
   <p class="hint"><b>Compare</b> shows all classes side by side. <b>Export JSON</b> backs everything up. Your work saves in this browser only.</p>
   <div class="row" style="justify-content:flex-end; margin-top:12px"><button id="helpClose" class="primary">Got it</button></div>
@@ -535,7 +535,7 @@ function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_K
 function setStatus(t) { $("#status").textContent = t; }
 
 function normalize(s) {
-  if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or zones).");
+  if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or categories).");
   s.v = 2;
   const def = PRESETS.default.bars();
   s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
@@ -683,7 +683,7 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
     if (a) h += `<div class="ab-tile">${tileHTML(a)}</div>`;
     if (sh.length) h += `<div class="edges" style="box-shadow:${sh.join(",")}"></div>`;
     h += `<span class="key">${esc(key ? shortKey(key) : (mode === "bars" ? "·" : ""))}</span>`;
-    if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong zone">!</span>`;
+    if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong category">!</span>`;
     h += `</button>`;
   });
   h += endCapsHTML(L, mini || map);
@@ -774,7 +774,7 @@ function newClassFormHTML(id, first) {
     <h2>${first ? "Add your first class" : "New class"}</h2>
     <div class="row"><select id="${id}Kit" aria-label="Class" style="flex:1"><option value="">Pick a class…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}<option value="-">Other (just a name)</option></select></div>
     <div class="row"><input type="text" id="${id}Name" placeholder="Name or spec, e.g. Ret Paladin" aria-label="Class or spec name"><button class="primary" type="submit">Add</button></div>
-    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. You also get the class's full WoW Forever spellbook to pick from.</p>
+    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching categories. You also get the class's full WoW Forever spellbook to pick from.</p>
     ${first ? `<p class="hint">Or <button type="button" class="small" data-act="game-import">Import from game</button> to read your spellbook and bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
   </form>`;
 }
@@ -790,7 +790,7 @@ function spellbookHTML(cls) {
   book.forEach(([n, lvl, tree, tag]) => { if (q && !n.toLowerCase().includes(q)) return; (trees[tree] = trees[tree] || []).push([n, lvl, tag]); });
   let h = `<div class="book"><h2>${esc(base)} spellbook <small>WoW Forever</small></h2>
     <div class="row"><input type="search" id="bookQ" value="${esc(ui.bookQ || "")}" placeholder="Filter ${book.length} spells" aria-label="Filter spells"></div>
-    <p class="hint">Click a spell to add it to the zone picked above.</p><div class="book-list">`;
+    <p class="hint">Click a spell to add it to the category picked above.</p><div class="book-list">`;
   Object.entries(trees).forEach(([tree, list]) => {
     h += `<div class="book-tree">${esc(tree)}</div>`;
     list.forEach(([n, lvl, tag]) => {
@@ -810,7 +810,7 @@ function addSpell(cls, name) {
   cls.abilities.push(a); ui.addZone = zone || "";
   save(); refreshClass();
   const bl = $(".book-list"); if (bl) bl.scrollTop = keep;
-  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added${zone ? " (no free button in that zone)" : ""}`);
+  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added${zone ? " (no free button in that category)" : ""}`);
 }
 function submitNewClass(id) {
   const kitName = $(`#${id}Kit`).value; const typed = $(`#${id}Name`).value.trim();
@@ -822,7 +822,7 @@ function submitNewClass(id) {
   c.abilities.forEach(a => { if (a.zone) a.cell = zoneCells(a.zone).find(cell => !c.abilities.some(b => b.cell === cell)) || null; });
   state.classes.push(c); ui.cls = c.id; ui.addingClass = false; ui.tab = "abilities"; ui.planMode = "abilities"; save(); saveUI(); render();
   const placed = c.abilities.filter(a => a.cell).length;
-  toast(kit ? `${name}: added ${c.abilities.length} key abilities, ${placed} placed in zones.` : `${name} added.`);
+  toast(kit ? `${name}: added ${c.abilities.length} key abilities, ${placed} placed in categories.` : `${name} added.`);
   setTimeout(() => $("#newAbName")?.focus(), 0);
   fetchIcons(c);
 }
@@ -879,9 +879,9 @@ function planBarHTML(title) {
     <div class="row">
       <div class="seg" role="group" aria-label="What clicking the bars does">
         <button data-plan="abilities" aria-pressed="${!z}">Place abilities</button>
-        <button data-plan="zones" aria-pressed="${z}">Edit zones</button>
+        <button data-plan="zones" aria-pressed="${z}">Edit categories</button>
       </div>
-      ${z ? `<label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Zone names</label>` : `<label class="inline"><input type="checkbox" id="chkMap" ${ui.map !== false ? "checked" : ""}> Zone map</label>`}
+      ${z ? `<label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Category names</label>` : `<label class="inline"><input type="checkbox" id="chkMap" ${ui.map !== false ? "checked" : ""}> Category map</label>`}
     </div>
   </div>`;
 }
@@ -890,7 +890,7 @@ function renderNoClass() {
   $("#main").innerHTML = `
   <section class="main-col">
     ${planBarHTML("Abilities")}
-    <p class="hint">Add your first class on the right. Its key abilities drop straight into your zones.</p>
+    <p class="hint">Add your first class on the right. Its key abilities drop straight into your categories.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
   </section>
   <aside class="side" id="side">
@@ -967,17 +967,17 @@ function renderZones() {
   $("#main").innerHTML = `
   <section class="main-col">
     ${guideHTML()}
-    ${planBarHTML(curClass() ? esc(curClass().name) : "Zones")}
-    <p class="hint">Zones are areas of your keyboard that hold the same job on every class, like "Interrupt always on R". Pick a zone on the right, then click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
+    ${planBarHTML(curClass() ? esc(curClass().name) : "Categories")}
+    <p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category on the right, then click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
     ${Object.keys(state.cells).length ? `<div class="row next-row"><button class="primary" data-plan="abilities">Done painting: place abilities →</button></div>` : ""}
   </section>
   <aside class="side" id="side">
     <div style="display:grid;gap:8px">
-      <h2>Zones</h2>
-      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No zones yet. Add one, or start with the usual five.</p><div class="row"><button class="small" data-act="starter-zones">Add Builders, Spenders, Offense, Defense, Interrupt</button></div>`}</div>
+      <h2>Categories</h2>
+      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No categories yet. Add one, or start with the usual five.</p><div class="row"><button class="small" data-act="starter-zones">Add Builders, Spenders, Offense, Defense, Interrupt</button></div>`}</div>
       <div class="row">
-        <button data-act="add-zone">+ Add zone</button>
+        <button data-act="add-zone">+ Add category</button>
         <button data-act="zones-shot">From a picture</button>
         <button class="pick ${ui.brush === "" ? "primary" : ""}" data-brush="">Eraser</button>
       </div>
@@ -989,8 +989,8 @@ function zoneListHTML() {
     const n = Object.values(state.cells).filter(v => v === z.id).length;
     return `<div class="zone-row ${ui.brush === z.id ? "active" : ""}" data-zone="${z.id}">
       <input type="color" value="${esc(z.color)}" data-zcolor="${z.id}" aria-label="${esc(z.name)} color">
-      <input type="text" value="${esc(z.name)}" data-zname="${z.id}" aria-label="Zone name">
-      <span class="count" title="Buttons in this zone">${n}</span>
+      <input type="text" value="${esc(z.name)}" data-zname="${z.id}" aria-label="Category name">
+      <span class="count" title="Buttons in this category">${n}</span>
       <button class="small pick ${ui.brush === z.id ? "primary" : ""}" data-brush="${z.id}">Paint</button>
       <button class="small ghost danger" data-delzone="${z.id}" aria-label="Delete ${esc(z.name)}">✕</button>
     </div>`;
@@ -1009,11 +1009,11 @@ function renderClass() {
   <section class="main-col">
     ${guideHTML()}
     ${planBarHTML(esc(cls.name))}
-    <p class="hint">Add an ability on the right and pick its zone; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
-    ${ui.map !== false && state.zones.length ? `<div class="map-head">Zones</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: true })}</div><div class="map-head">${esc(cls.name)}</div>` : ""}
+    <p class="hint">Add an ability on the right and pick its category; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
+    ${ui.map !== false && state.zones.length ? `<div class="map-head">Categories</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: true })}</div><div class="map-head">${esc(cls.name)}</div>` : ""}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels })}</div>
-    ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their zones</button></div>` : ""}
-    ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
+    ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their categories</button></div>` : ""}
+    ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} category (marked !). Move ${bad === 1 ? "it" : "them"} or change the category.</p>` : ""}
     <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
     ${state.classes.length > 1 ? nextHTML("overview", "Compare all classes") : ""}
   </section>
@@ -1021,7 +1021,7 @@ function renderClass() {
 }
 function classSideHTML(cls) {
   if (ui.addingClass) return newClassFormHTML("newClass", false);
-  const zopts = sel => `<option value="">No zone</option>` + state.zones.map(z => `<option value="${z.id}" ${sel === z.id ? "selected" : ""}>${esc(z.name)}</option>`).join("");
+  const zopts = sel => `<option value="">No category</option>` + state.zones.map(z => `<option value="${z.id}" ${sel === z.id ? "selected" : ""}>${esc(z.name)}</option>`).join("");
   let h = `
   <div style="display:grid;gap:8px">
     <h2>Class</h2>
@@ -1033,16 +1033,16 @@ function classSideHTML(cls) {
     <h2>Add ability</h2>
     <div class="row"><button class="small" type="button" data-act="game-import">Import from game</button><span class="hint">Pulls your spellbook and bars</span></div>
     <div class="row"><input type="text" id="newAbName" placeholder="${ui.addCell ? "Ability for " + esc(slotLabel(ui.addCell)) : "Ability name"}" aria-label="Ability name" required></div>
-    <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
+    <div class="row"><select id="newAbZone" aria-label="Category" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
   </form>
   ${spellbookHTML(cls)}
   <div style="display:grid;gap:8px">
-    <h2>Abilities by zone</h2>
+    <h2>Abilities by category</h2>
     <div class="ab-groups" id="abGroups">`;
   const groups = state.zones.map(z => ({ z, list: cls.abilities.filter(a => a.zone === z.id) }));
-  groups.push({ z: { id: "", name: "No zone", color: "#555" }, list: cls.abilities.filter(a => !a.zone || !zoneById(a.zone)) });
-  if (!state.zones.length) h += `<p class="hint">Paint some zones first so abilities have somewhere to go.</p>`;
+  groups.push({ z: { id: "", name: "No category", color: "#555" }, list: cls.abilities.filter(a => !a.zone || !zoneById(a.zone)) });
+  if (!state.zones.length) h += `<p class="hint">Paint some categories first so abilities have somewhere to go.</p>`;
   groups.forEach(({ z, list }) => {
     if (!list.length && !z.id) return;
     const cap = z.id ? zoneCells(z.id).length : 0;
@@ -1064,7 +1064,7 @@ function classSideHTML(cls) {
 function editorHTML(a, zopts) {
   return `<div class="editor" data-editor="${a.id}">
     <span class="lbl">Name</span><input type="text" data-f="name" value="${esc(a.name)}">
-    <span class="lbl">Zone</span><select data-f="zone">${zopts(a.zone)}</select>
+    <span class="lbl">Category</span><select data-f="zone">${zopts(a.zone)}</select>
     <span class="lbl">Icon: wowhead icon name (e.g. spell_holy_avenginewrath), an image URL, or drop / paste an image below</span>
     <input type="text" data-f="icon" value="${esc(a.icon && a.icon.startsWith("data:") ? "(uploaded image)" : a.icon)}" spellcheck="false">
     <div class="icon-drop" data-drop="${a.id}" tabindex="0">Drop an image here, or click here and paste (Ctrl+V). <label style="color:var(--accent);cursor:pointer">Browse<input type="file" accept="image/*" data-file="${a.id}" hidden></label></div>
@@ -1092,7 +1092,7 @@ function renderOverview() {
       <div class="grid-wrap">${gridHTML({ cls: c, mini: true })}</div>
     </div>`;
   }).join("");
-  let table = `<table><thead><tr><th>Zone</th>${state.classes.map(c => `<th>${esc(c.name)}</th>`).join("")}</tr></thead><tbody>`;
+  let table = `<table><thead><tr><th>Category</th>${state.classes.map(c => `<th>${esc(c.name)}</th>`).join("")}</tr></thead><tbody>`;
   state.zones.forEach(z => {
     const ids = zoneCells(z.id);
     table += `<tr><th><i class="sw" style="background:${esc(z.color)};margin-right:6px"></i>${esc(z.name)}</th>`;
@@ -1106,9 +1106,9 @@ function renderOverview() {
   $("#main").innerHTML = `<section class="main-col" style="grid-column:1/-1">
     ${guideHTML()}
     <h2>All classes</h2>
-    <p class="hint">Same bars and zones, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
+    <p class="hint">Same bars and categories, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
     <div class="ov">${cards || `<p class="hint">No classes yet. Add one in step 3, Abilities.</p>`}</div>
-    ${state.zones.length && state.classes.length ? `<h2 style="margin-top:12px">By zone</h2><div class="zmatrix">${table}</div>` : ""}
+    ${state.zones.length && state.classes.length ? `<h2 style="margin-top:12px">By category</h2><div class="zmatrix">${table}</div>` : ""}
   </section>`;
 }
 
@@ -1196,7 +1196,7 @@ main.addEventListener("click", async e => {
   const planBtn = t.closest("[data-plan]");
   if (planBtn) { go(planBtn.dataset.plan); return; }
   const sp = t.closest("[data-addspell]"); if (sp && curClass()) { addSpell(curClass(), sp.dataset.addspell); return; }
-  if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
+  if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Categories and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
   if (act === "game-import") { openGameImport(); return; }
   const goBtn = t.closest("[data-goto]");
@@ -1208,12 +1208,12 @@ main.addEventListener("click", async e => {
     if (act === "wow-export") { openWowExport(); return; }
     if (act === "binds-import") { openBindsImport(); return; }
     if (act === "binds-clear") {
-      if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your zones and abilities stay where they are.", "Clear keybinds")) return;
+      if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your categories and abilities stay where they are.", "Clear keybinds")) return;
       state.binds = {}; save(); renderBars(); return;
     }
     if (act === "preset" || act === "preset-default") {
       const p = PRESETS[act === "preset-default" ? "default" : $("#presetSel").value];
-      if (!await confirmBox(`Use "${p.name}"?`, "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Apply preset")) return;
+      if (!await confirmBox(`Use "${p.name}"?`, "This replaces your bar shapes, positions and keybinds. Categories and abilities stay on the same bar buttons.", "Apply preset")) return;
       state.bars = p.bars(); state.binds = p.binds(); ui.barsDone = true; saveUI(); save(); renderBars(); return;
     }
     return;
@@ -1227,7 +1227,7 @@ main.addEventListener("click", async e => {
     if (act === "zones-shot") { openShot(); return; }
     if (act === "add-zone") {
       const hue = Math.floor(Math.random() * 360);
-      const z = { id: uid(), name: "New zone", color: hslHex(hue, 55, 48) };
+      const z = { id: uid(), name: "New category", color: hslHex(hue, 55, 48) };
       state.zones.push(z); ui.brush = z.id; save(); render();
       setTimeout(() => { const i = $(`[data-zname="${z.id}"]`); i?.focus(); i?.select(); }, 0);
       return;
@@ -1237,7 +1237,7 @@ main.addEventListener("click", async e => {
       const z = zoneById(dz.dataset.delzone);
       const n = state.classes.reduce((s, c) => s + c.abilities.filter(a => a.zone === z.id).length, 0);
       const cnt = Object.values(state.cells).filter(v => v === z.id).length;
-      if (!await confirmBox(`Delete "${z.name}"?`, `Its ${cnt} buttons become unzoned${n ? ` and ${n} abilities lose their zone tag (they stay on the bars)` : ""}.`, "Delete zone")) return;
+      if (!await confirmBox(`Delete "${z.name}"?`, `Its ${cnt} buttons lose their category${n ? ` and ${n} abilities lose their category tag (they stay on the bars)` : ""}.`, "Delete category")) return;
       state.zones = state.zones.filter(x => x.id !== z.id);
       for (const k in state.cells) if (state.cells[k] === z.id) delete state.cells[k];
       state.classes.forEach(c => c.abilities.forEach(a => { if (a.zone === z.id) a.zone = null; }));
@@ -1257,7 +1257,7 @@ main.addEventListener("click", async e => {
       const free = zoneCells(a.zone).find(id => !cls.abilities.some(b => b.cell === id));
       if (free) { a.cell = free; n++; }
     });
-    save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free buttons in those zones. Paint more on the Zones tab."); return;
+    save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free buttons in those categories. Paint more with Edit categories."); return;
   }
   if (act === "dup-class") return addClass(cls);
   if (act === "new-class") { ui.addingClass = true; refreshClass(); setTimeout(() => $("#newClassKit")?.focus(), 0); return; }
@@ -1307,7 +1307,7 @@ main.addEventListener("submit", e => {
   cls.abilities.push(a);
   ui.addCell = null; ui.addZone = zone || "";
   save(); refreshClass();
-  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added (no free button in that zone)`);
+  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added (no free button in that category)`);
   setTimeout(() => $("#newAbName")?.focus(), 0);
 });
 main.addEventListener("input", e => {
@@ -1450,7 +1450,7 @@ function readShot() {
     let z = state.zones.filter(z => !used.has(z.id)).map(z => [z, cdist(fromHex(z.color), gp.mean)]).sort((a, b) => a[1] - b[1])[0];
     z = z && z[1] < tol ? z[0] : null;
     if (z) used.add(z.id);
-    return { gp, zone: z || { id: uid(), name: "Zone " + (++n), color: toHex(gp.mean) }, isNew: !z };
+    return { gp, zone: z || { id: uid(), name: "Category " + (++n), color: toHex(gp.mean) }, isNew: !z };
   });
   shot.result = {};
   shot.zones.forEach(({ gp, zone }) => gp.list.forEach(s => shot.result[s.id] = { zid: zone.id, color: zone.color }));
@@ -1469,7 +1469,7 @@ $("#shotApply").onclick = () => {
   state.cells = {}; Object.entries(shot.result).forEach(([id, r]) => state.cells[id] = r.zid);
   const nNew = shot.zones.filter(z => z.isNew).length;
   save(); $("#dlgShot").close(); render();
-  toast(`Zones repainted from your picture${nNew ? `. ${nNew} new zone${nNew > 1 ? "s" : ""} to rename on the right` : ""}.`);
+  toast(`Categories repainted from your picture${nNew ? `. ${nNew} new categor${nNew > 1 ? "ies" : "y"} to rename on the right` : ""}.`);
 };
 {
   const st = $("#shotStage");
@@ -1820,7 +1820,7 @@ $("#btnExport").onclick = () => {
 };
 $("#btnHelp").onclick = () => $("#dlgHelp").showModal();
 $("#btnReset").onclick = async () => {
-  if (!await confirmBox("Start over?", "This erases your bars, keybinds, zones and every class saved in this browser and takes you back to the welcome screen. Export JSON first if you want a backup.", "Erase and start over")) return;
+  if (!await confirmBox("Start over?", "This erases your bars, keybinds, categories and every class saved in this browser and takes you back to the welcome screen. Export JSON first if you want a backup.", "Erase and start over")) return;
   clearTimeout(saveTimer); saveTimer = null;
   try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(UI_KEY); } catch (e) {}
   state = blankState();
