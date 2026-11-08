@@ -531,7 +531,7 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 12";
+const BUILD = "Nov 8 · 13";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -541,7 +541,7 @@ function normalize(s) {
   if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or categories).");
   s.v = 2;
   const def = PRESETS.default.bars();
-  s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0), rev: !!b.rev }; });
+  s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0), down: !!b.down }; });
   s.binds = s.binds || {};
   s.endcaps = s.endcaps !== false;
   delete s.flip;
@@ -601,8 +601,9 @@ function layout() {
     out.bars.push({ n: b.n, x: bx, y: by, w: g.w, h: g.h });
     for (let i = 0; i < b.icons; i++) {
       const a = Math.floor(i / g.per), c = i % g.per;
-      const k = b.rev ? g.per - 1 - c : c; // reversed bars run 12..1 (right to left, or bottom to top)
-      const r = b.orient === "h" ? a : k, col = b.orient === "h" ? k : a;
+      // Like WoW, a horizontal bar with several rows starts at the bottom: buttons 1..3 on the bottom row, new rows stack upward.
+      const ra = b.orient === "h" && !b.down ? g.h - 1 - a : a;
+      const r = b.orient === "h" ? ra : c, col = b.orient === "h" ? c : a;
       const id = b.n + "-" + (i + 1);
       const R = by + r, C = bx + col;
       out.cells.push({ id, bar: b.n, i: i + 1, r: R, c: C });
@@ -954,7 +955,7 @@ function barsSideHTML() {
               <select data-bf="orient" aria-label="Orientation">${opt("h", b.orient, "Horizontal")}${opt("v", b.orient, "Vertical")}</select>
               <select data-bf="lines" aria-label="${b.orient === "h" ? "Rows" : "Columns"}">${[1, 2, 3, 4, 6, 12].map(n => opt(n, b.lines, n + (b.orient === "h" ? (n === 1 ? " row" : " rows") : (n === 1 ? " col" : " cols")))).join("")}</select>
               <select data-bf="icons" aria-label="Number of buttons">${[6, 7, 8, 9, 10, 11, 12].map(n => opt(n, b.icons, n + " buttons")).join("")}</select>
-              <label class="inline" title="Buttons run ${b.orient === "h" ? "right to left" : "bottom to top"}"><input type="checkbox" data-bf="rev" ${b.rev ? "checked" : ""}> Reverse (${b.icons}→1)</label>
+              ${b.orient === "h" && b.lines > 1 ? `<label class="inline" title="WoW starts a multi-row bar at the bottom. Tick this if your button 1 is on the top row."><input type="checkbox" data-bf="down" ${b.down ? "checked" : ""}> Button 1 on top row</label>` : ""}
               ${b.n === 1 ? `<label class="inline"><input type="checkbox" id="chkCaps" ${state.endcaps !== false ? "checked" : ""}> End caps</label>` : ""}
             </div>
           </div>`).join("")}
@@ -1348,7 +1349,7 @@ main.addEventListener("change", e => {
   if (br && t.dataset.bf) {
     const b = state.bars.find(x => x.n === +br.dataset.bar);
     if (t.dataset.bf === "show") b.show = t.checked;
-    else if (t.dataset.bf === "rev") b.rev = t.checked;
+    else if (t.dataset.bf === "down") b.down = t.checked;
     else if (t.dataset.bf === "orient") b.orient = t.value;
     else b[t.dataset.bf] = +t.value;
     ui.barsDone = true; saveUI(); normalizeBarOrigin(); save(); renderBars(); return;
@@ -1697,7 +1698,7 @@ $("#editGo").onclick = () => {
     if (!r.total) { previewWow(); return; }
     binds = r.binds;
   }
-  if (bars) { bars.forEach(b => { b.rev = !!state.bars.find(o => o.n === b.n)?.rev; }); state.bars = bars; }
+  if (bars) { bars.forEach(b => { b.down = !!state.bars.find(o => o.n === b.n)?.down; }); state.bars = bars; }
   if (binds) {
     state.binds = binds;
     Object.keys(binds).forEach(k => { const b = state.bars.find(x => x.n === +k.split("-")[0]); if (b) b.show = true; });
