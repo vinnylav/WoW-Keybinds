@@ -324,7 +324,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <h1 class="brand">Keybind <span>Atlas</span> <em class="edition" title="Built for World of Warcraft: Forever">for WoW Forever</em></h1>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
   <div class="hdr-actions">
-    <span class="status" id="status"></span>
+    <span class="status" id="status"></span><span class="status" id="ver" style="opacity:.55"></span>
     <button id="btnHelp" class="small ghost">How it works</button>
     <button id="btnReset" class="small ghost danger">Start over</button>
     <button id="btnExport" class="small">Export JSON</button>
@@ -532,7 +532,9 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
+const BUILD = "Nov 8 · 8";
 function setStatus(t) { $("#status").textContent = t; }
+$("#ver").textContent = "Version " + BUILD;
 
 function normalize(s) {
   if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or categories).");
