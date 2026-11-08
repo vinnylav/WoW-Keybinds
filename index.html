@@ -600,7 +600,7 @@ function save(undoable = true) {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone, tour: ui.tour })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 20";
+const BUILD = "Nov 8 · 21";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -1780,8 +1780,22 @@ function editModeToBars(eb, W, H) {
       let guard = 0; while (hit(gx, gy) && guard++ < 60) gy++;
       placed.push({ x: gx, y: gy, w: g.cols, h: g.rows });
     }
-    return { n: d.n, show, orient: b.orient, lines: Math.min(12, b.lines), icons: b.icons, x: gx, y: gy };
+    return { n: d.n, show, orient: b.orient, lines: Math.min(12, b.lines), icons: b.icons, x: gx, y: gy, def: b.def && d.n !== 1, rows: g.rows, cols: g.cols };
   });
+  // Bars left in their default spot are placed by the game itself, so their saved offsets mean nothing.
+  // Put them where the default UI does: bars 2 and 3 stacked above Bar 1 (shown), bars 4 and 5 down the right, 6 to 8 off.
+  const b1 = out.find(b => b.n === 1);
+  out.filter(b => b.def).forEach(b => {
+    if (b.n === 2 || b.n === 3) {
+      if (byN[b.n].hidden) { b.show = false; return; }
+      b.x = b1.x; b.y = b1.y - b.rows;
+      const hit = () => placed.some(p => b.x < p.x + p.w && b.x + b.cols > p.x && b.y < p.y + p.h && b.y + b.rows > p.y);
+      let guard = 0; while (hit() && guard++ < 60) b.y--;
+      placed.push({ x: b.x, y: b.y, w: b.cols, h: b.rows }); b.show = true;
+    } else if (b.n === 4 || b.n === 5) { b.show = false; b.x = b1.x + b1.cols + (b.n === 4 ? 3 : 2); b.y = b1.y - b.rows + 1; }
+    else b.show = false;
+  });
+  out.forEach(b => { delete b.def; delete b.rows; delete b.cols; });
   const mx = Math.min(...out.map(b => b.x)), my = Math.min(...out.map(b => b.y));
   out.forEach(b => { b.x -= mx; b.y -= my; });
   return out;
