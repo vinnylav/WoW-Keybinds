@@ -340,6 +340,25 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
+<dialog id="dlgGame">
+  <h2>Import abilities from the game</h2>
+  <p class="hint">No addon needed. Log into the character, then paste these lines into the chat box <b>one at a time</b>, pressing Enter after each. The first time, WoW may ask you to allow scripts; say yes and paste that line again.</p>
+  <pre class="macro" id="gameLines"></pre>
+  <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy lines</button></div>
+  <p class="hint">A dark box opens with your spells, bars and keys, all selected. Press Ctrl+C, then Esc, and paste it here:</p>
+  <textarea id="gameText" rows="6" placeholder="KBA 1&#10;class Paladin&#10;slot 1-1 spell 35395 Crusader Strike"></textarea>
+  <div class="row" style="margin-top:6px">
+    <label class="inline" for="gameTarget">Put them in</label>
+    <select id="gameTarget"></select>
+  </div>
+  <label class="inline" style="margin-top:6px"><input type="checkbox" id="gameBinds" checked> Also use the keybinds from the game</label>
+  <p class="hint" id="gameMsg"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="gameCancel" class="ghost">Cancel</button>
+    <button id="gameGo" class="primary">Import</button>
+  </div>
+</dialog>
+
 <dialog id="dlgHelp">
   <h2>How it works</h2>
   <ol class="help-steps">
@@ -457,7 +476,7 @@ function normalize(s) {
   s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
   s.binds = s.binds || {};
   s.cells = s.cells || {};
-  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "" })) }));
+  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null })) }));
   return s;
 }
 function clampInt(v, lo, hi, d) { v = parseInt(v, 10); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
@@ -674,6 +693,8 @@ function renderNoClass() {
   <aside class="side" id="side">
     <form id="firstClass" style="display:grid;gap:8px">
       <h2>Add your first class</h2>
+      <div class="row"><button class="primary" type="button" data-act="game-import">Import from game</button></div>
+      <p class="hint">Reads your spellbook and bars from the character you're logged into. Or type a name:</p>
       <div class="row"><input type="text" id="firstClassName" placeholder="e.g. Ret Paladin" aria-label="Class or spec name" required><button class="primary" type="submit">Add</button></div>
     </form>
   </aside>`;
@@ -812,6 +833,7 @@ function classSideHTML(cls) {
   </div>
   <form id="addAb" style="display:grid;gap:6px">
     <h2>Add ability</h2>
+    <div class="row"><button class="small" type="button" data-act="game-import">Import from game</button><span class="hint">Pulls your spellbook and bars</span></div>
     <div class="row"><input type="text" id="newAbName" placeholder="${ui.addCell ? "Ability for " + esc(slotLabel(ui.addCell)) : "Ability name"}" aria-label="Ability name" required></div>
     <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
@@ -974,6 +996,7 @@ main.addEventListener("click", async e => {
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
   if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
+  if (act === "game-import") { openGameImport(); return; }
   const goBtn = t.closest("[data-goto]");
   if (goBtn) { go(goBtn.dataset.goto); return; }
 
@@ -1337,6 +1360,89 @@ $("#editGo").onclick = () => {
   ui.barsDone = true; saveUI(); save(); $("#dlgEdit").close(); render();
   toast([bars && "Bars imported", binds && `${Object.keys(binds).length} keybinds imported`].filter(Boolean).join(" · ") + ".");
 };
+
+
+/* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
+const GAME_LINES = ["/run KN=function(i)return C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(i)or GetSpellInfo(i)or\"\"end KK={\"KBA 1\",\"class \"..UnitClass(\"player\")}KS={1,61,49,25,37,145,157,169}", "/run for b=1,8 do for n=1,12 do local s,t,i=b..\"-\"..n,GetActionInfo(KS[b]+n-1)if t==\"spell\"then tinsert(KK,\"slot \"..s..\" spell \"..i..\" \"..KN(i))elseif t==\"macro\"then tinsert(KK,\"slot \"..s..\" macro 0 \"..(GetMacroInfo(i)or\"\"))end end end", "/run for b=1,8 do for n=1,12 do local k=GetBindingKey(b<2 and\"ACTIONBUTTON\"..n or\"MULTIACTIONBAR\"..(b-1)..\"BUTTON\"..n)if k then tinsert(KK,\"bind \"..b..\"-\"..n..\" \"..k)end end end", "/run if GetNumSpellTabs then for t=1,GetNumSpellTabs()do local _,_,o,c=GetSpellTabInfo(t)for i=o+1,o+c do local y,d=GetSpellBookItemInfo(i,\"spell\")if y==\"SPELL\"and not IsPassiveSpell(i,\"spell\")then tinsert(KK,\"book spell \"..d..\" \"..KN(d))end end end end", "/run local B=C_SpellBook KP=function(q)for i=q.itemIndexOffset+1,q.itemIndexOffset+q.numSpellBookItems do local x=B.GetSpellBookItemInfo(i,0)if x.itemType==1 and not x.isPassive then tinsert(KK,\"book spell \"..x.spellID..\" \"..x.name)end end end", "/run local B=C_SpellBook if B and not GetNumSpellTabs then for l=1,B.GetNumSpellBookSkillLines()do local q=B.GetSpellBookSkillLineInfo(l)if not q.offSpecID then KP(q)end end end", "/run KE=KE or CreateFrame(\"EditBox\",nil,UIParent)KE:SetMultiLine(true)KE:SetSize(480,360)KE:SetPoint(\"CENTER\")KE:SetFrameStrata(\"DIALOG\")KE:SetFontObject(ChatFontNormal)KE:SetScript(\"OnEscapePressed\",KE.Hide)", "/run local t=KE.bg or KE:CreateTexture(nil,\"BACKGROUND\")KE.bg=t t:SetAllPoints()t:SetColorTexture(0,0,0,.85)KE:SetText(table.concat(KK,\"\\n\"))KE:Show()KE:SetFocus()KE:HighlightText()print(\"Keybind Atlas: Ctrl+C, then Esc\")"];
+function openGameImport() {
+  $("#gameLines").textContent = GAME_LINES.join("\n");
+  $("#gameText").value = ""; $("#gameMsg").textContent = "";
+  $("#gameTarget").innerHTML = `<option value="">A new class (named from the game)</option>` + state.classes.map(c => `<option value="${c.id}" ${c.id === ui.cls ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+  $("#dlgGame").showModal();
+}
+$("#gameCancel").onclick = () => $("#dlgGame").close();
+$("#gameCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(GAME_LINES.join("\n")); toast("Copied. Paste them into WoW chat one line at a time."); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("#gameLines")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
+};
+function parseGame(text) {
+  const out = { cls: "", slots: [], binds: {}, book: [] };
+  text.split(/\r?\n/).forEach(line => {
+    line = line.trim(); let m;
+    if ((m = /^class\s+(.+)$/.exec(line))) out.cls = m[1].trim();
+    else if ((m = /^slot\s+(\d)-(\d+)\s+(spell|macro)\s+(\d+)\s*(.*)$/.exec(line))) {
+      const b = +m[1], i = +m[2]; if (b < 1 || b > 8 || i < 1 || i > 12) return;
+      out.slots.push({ cell: b + "-" + i, kind: m[3], spellId: m[3] === "spell" ? +m[4] : null, name: m[5].trim() || (m[3] === "macro" ? "Macro" : "Spell " + m[4]) });
+    }
+    else if ((m = /^bind\s+(\d)-(\d+)\s+(\S+)$/.exec(line))) out.binds[+m[1] + "-" + +m[2]] = m[3].toUpperCase();
+    else if ((m = /^book\s+spell\s+(\d+)\s*(.*)$/.exec(line))) out.book.push({ spellId: +m[1], name: m[2].trim() || "Spell " + m[1] });
+  });
+  return out;
+}
+$("#gameText").oninput = () => {
+  const g = parseGame($("#gameText").value), m = $("#gameMsg");
+  if (!$("#gameText").value.trim()) { m.textContent = ""; return; }
+  const n = g.slots.length + g.book.length;
+  m.style.color = n ? "var(--ok)" : "var(--danger)";
+  m.textContent = n ? `Found ${g.cls || "a character"}: ${g.slots.length} things on your bars, ${g.book.length} spells in your spellbook, ${Object.keys(g.binds).length} keybinds.` : "That doesn't look like the text from the game box. It should start with KBA 1.";
+};
+$("#gameGo").onclick = () => {
+  const g = parseGame($("#gameText").value);
+  if (!g.slots.length && !g.book.length) { $("#gameText").oninput(); return; }
+  let cls = state.classes.find(c => c.id === $("#gameTarget").value);
+  if (!cls) { cls = { id: uid(), name: g.cls || "Imported class", color: "#c7c3b8", abilities: [] }; state.classes.push(cls); }
+  const find = (spellId, name) => cls.abilities.find(a => (spellId && a.spellId === spellId) || a.name.toLowerCase() === name.toLowerCase());
+  let placed = 0, added = 0;
+  // Bar contents: put each ability on the button it sits on in game.
+  g.slots.forEach(s => {
+    let a = find(s.spellId, s.name);
+    if (!a) { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: s.spellId }; cls.abilities.push(a); added++; }
+    const other = cls.abilities.find(x => x.cell === s.cell && x !== a); if (other) other.cell = null;
+    a.cell = s.cell; a.spellId = a.spellId || s.spellId;
+    if (!a.zone && state.cells[s.cell]) a.zone = state.cells[s.cell];
+    placed++;
+  });
+  // Spellbook: anything not already listed comes in unplaced.
+  g.book.forEach(b => { if (!find(b.spellId, b.name)) { cls.abilities.push({ id: uid(), name: b.name, zone: null, cell: null, icon: "", spellId: b.spellId }); added++; } });
+  const nb = Object.keys(g.binds).length;
+  if ($("#gameBinds").checked && nb) {
+    state.binds = { ...g.binds };
+    Object.keys(g.binds).forEach(k => { const bar = state.bars.find(x => x.n === +k.split("-")[0]); if (bar) bar.show = true; });
+    ui.barsDone = true; saveUI();
+  }
+  ui.cls = cls.id; ui.tab = "abilities"; save(); $("#dlgGame").close(); render();
+  toast(`${cls.name}: ${placed} placed from your bars, ${added} new abilities${$("#gameBinds").checked && nb ? `, ${nb} keybinds` : ""}.`);
+  fetchIcons(cls);
+};
+// Look up icon names for abilities that have a spell ID, using Wowhead's public tooltip data.
+const iconCache = (() => { try { return JSON.parse(localStorage.getItem("keybind-atlas:icons") || "{}"); } catch (e) { return {}; } })();
+async function fetchIcons(cls) {
+  const todo = cls.abilities.filter(a => a.spellId && !a.icon);
+  let changed = 0;
+  for (const a of todo) {
+    let icon = iconCache[a.spellId];
+    if (icon === undefined) {
+      try {
+        const r = await fetch(`https://nether.wowhead.com/tooltip/spell/${a.spellId}`);
+        icon = r.ok ? ((await r.json()).icon || "") : "";
+      } catch (e) { return; } // blocked or offline: stop quietly, abilities keep their initials
+      iconCache[a.spellId] = icon;
+    }
+    if (icon && !a.icon) { a.icon = icon; changed++; }
+  }
+  try { localStorage.setItem("keybind-atlas:icons", JSON.stringify(iconCache)); } catch (e) {}
+  if (changed) { save(); if (ui.tab === "abilities" && curClass() === cls) refreshClass(); }
+}
 
 /* ---------------- JSON export / import ---------------- */
 $("#btnExport").onclick = () => {
