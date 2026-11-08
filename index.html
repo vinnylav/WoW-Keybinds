@@ -86,10 +86,10 @@ header {
 .foot { margin: 24px 0 16px; font-size: 12px; color: var(--muted); opacity: .7; }
 .status { font-size: 12px; color: var(--muted); }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 24px; padding-block: 20px; align-items: start; }
-@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+/* One column: the bars always get the full page width; the panels sit underneath, side by side where they fit. */
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 20px; align-items: start; }
 .main-col { min-width: 0; display: grid; gap: 14px; }
-.side { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; color: var(--fg); display: grid; gap: 14px; min-width: 0; }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; color: var(--fg); display: grid; gap: 14px 28px; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); align-items: start; }
 .side h2, .main-col h2 { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .06em; font-size: 15px; color: var(--muted); margin: 0; font-weight: 600; }
 .hint { color: var(--muted); font-size: 13px; margin: 0; max-width: 62ch; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -109,7 +109,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)
 .banner p { margin: 0; flex: 1 1 240px; }
 
 /* ---- the bar grid ---- */
-.grid-wrap { overflow-x: auto; }
+.grid-wrap { overflow: visible; }
 .grid {
   --cols: 9;
   display: grid; grid-template-columns: repeat(var(--cols), minmax(36px, 1fr));
@@ -250,7 +250,7 @@ button.ghost:not(.cell) { border-image: none !important; border-color: transpare
 }
 .side { padding: 16px; }
 .ov-card { padding: 12px; }
-@media (min-width: 861px) { .side { position: sticky; top: calc(var(--hdr-h, 76px) + 8px); max-height: calc(100vh - var(--hdr-h, 76px) - 20px); overflow-y: auto; } }
+
 .ov-card:hover { border-color: var(--accent); }
 .side h2, .guide h2, dialog h2 { padding-bottom: 6px; border-bottom: 1px solid rgba(226,178,76,.18); }
 input[type=text], select, textarea {
@@ -282,7 +282,14 @@ input[type=text], select, textarea {
 @keyframes pulse { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .cell.capture { animation: none; } }
 .blabel { position: absolute; transform: translate(-50%, -50%); pointer-events: none; font: 700 11px var(--f-fantasy); color: #fff3cf; background: rgba(0,0,0,.7); padding: 0 5px; border-radius: 3px; white-space: nowrap; opacity: .85; }
-.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), auto); width: 100%; max-width: calc(var(--cols) * min(54px, 500px / var(--rows))); }
+.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), auto); width: 100%; max-width: calc(var(--cols) * min(64px, 640px / var(--rows))); }
+/* The bars are the stage: centred, as big as the page and screen height allow, with everything else around them. */
+.grid-wrap.stage { display: grid; justify-items: center; padding-block: 8px 4px; }
+.grid-wrap.stage > .grid { max-width: calc(var(--cols) * min(88px, 54vh / var(--rows))); }
+.legend { justify-content: center; }
+.ref-map { display: grid; gap: 8px; justify-items: start; }
+.ref-map .grid-wrap { width: min(100%, 520px); }
+.ref-map .grid .cell .key { font-size: 9px; }
 .grid-wrap { max-width: 100%; }
 .map-head { font: 600 11px var(--f-fantasy); color: var(--accent); text-transform: uppercase; letter-spacing: .08em; margin: 4px 0 -4px; }
 .grid.map { pointer-events: none; }
@@ -600,7 +607,7 @@ function save(undoable = true) {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone, tour: ui.tour })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 22";
+const BUILD = "Nov 8 · 24";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -1005,10 +1012,10 @@ function nextHTML(tab, label) { return `<div class="row next-row"><button class=
 function renderNoClass() {
   $("#main").innerHTML = `
   <section class="main-col">
-    ${guideHTML()}
     ${planBarHTML("Abilities")}
-    <p class="hint">Add your first class on the right. Its key abilities drop straight into your categories.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
+    <div class="grid-wrap stage" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
+    ${guideHTML()}
+    <p class="hint">Add your first class in the panel below. Its key abilities drop straight into your categories.</p>
   </section>
   <aside class="side" id="side">
     ${newClassFormHTML("firstClass", true)}
@@ -1020,11 +1027,11 @@ function renderBars() {
   const capBar = ui.capture ? `<div class="capture-bar" role="status"><p>Press the key or mouse button for <b>${esc(BAR_NAME(+ui.capture.split("-")[0]))}, button ${ui.capture.split("-")[1]}</b>. Backspace clears it, Esc cancels.</p><button class="small" data-act="cap-clear">Clear key</button><button class="small ghost" data-act="cap-cancel">Cancel</button></div>` : "";
   $("#main").innerHTML = `
   <section class="main-col">
-    ${guideHTML()}
     <h2>Your action bars</h2>
-    <p class="hint">Click any button, then press the key you use for it. Drag a bar to move it.</p>
+    <div class="grid-wrap stage" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
     ${capBar}
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
+    ${guideHTML()}
+    <p class="hint">Click any button, then press the key you use for it. Drag a bar to move it.</p>
     ${ui.barsDone ? nextHTML("plan", "Next: plan your keys") : ""}
   </section>
   <aside class="side" id="side">${barsSideHTML()}</aside>`;
@@ -1084,10 +1091,10 @@ function renderZones() {
   if (ui.brush === null && state.zones[0]) ui.brush = state.zones[0].id;
   $("#main").innerHTML = `
   <section class="main-col">
-    ${guideHTML()}
     ${planBarHTML(curClass() ? esc(curClass().name) : "Categories")}
-    ${ui.tour === "paint" ? "" : `<p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category in the Categories panel, then tap, click or drag across buttons to paint it. Drag over painted buttons to erase.</p>`}
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
+    <div class="grid-wrap stage" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
+    ${guideHTML()}
+    ${ui.tour === "paint" ? "" : `<p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category in the Categories panel below, then tap, click or drag across buttons to paint it. Drag over painted buttons to erase.</p>`}
     ${Object.keys(state.cells).length ? `<div class="row next-row"><button class="primary" data-plan="abilities">Done painting: place abilities →</button></div>` : ""}
   </section>
   <aside class="side" id="side">
@@ -1125,14 +1132,14 @@ function renderClass() {
   const bad = cls.abilities.filter(mismatched).length;
   $("#main").innerHTML = `
   <section class="main-col">
-    ${guideHTML()}
     ${planBarHTML(esc(cls.name))}
-    <p class="hint">Add an ability in the Class panel and pick its category; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
-    ${ui.map !== false && state.zones.length ? `<div class="map-head">Categories</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: true })}</div><div class="map-head">${esc(cls.name)}</div>` : ""}
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels })}</div>
+    <div class="grid-wrap stage" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels })}</div>
+    <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
+    ${guideHTML()}
     ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their categories</button></div>` : ""}
     ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} category (marked !). Move ${bad === 1 ? "it" : "them"} or change the category.</p>` : ""}
-    <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
+    <p class="hint">Add an ability in the Class panel below and pick its category; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
+    ${ui.map !== false && state.zones.length ? `<div class="ref-map"><div class="map-head">Category map</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: false })}</div></div>` : ""}
     ${state.classes.length > 1 ? nextHTML("overview", "Compare all classes") : ""}
   </section>
   <aside class="side" id="side">${classSideHTML(cls)}</aside>`;
