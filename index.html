@@ -381,9 +381,22 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
+<dialog id="dlgBinds">
+  <h2>Import keybinds from WoW</h2>
+  <p class="hint">No addon needed. In game, paste this line into the chat box and press Enter.</p>
+  <pre class="macro" id="bindsLine"></pre>
+  <div class="row" style="margin:6px 0"><button class="small" id="bindsCopy">Copy line</button></div>
+  <p class="hint">A text box appears at the top of your screen. Click it (that selects everything), press Ctrl+C, then click anywhere else to close it. Paste it here:</p>
+  <textarea id="bindsText" rows="4" placeholder=" ACTIONBUTTON1@1 ACTIONBUTTON2@2 MULTIACTIONBAR1BUTTON5@SHIFT-Q …"></textarea>
+  <p class="hint" id="bindsMsg"></p>
+  <div class="row" style="justify-content:flex-end; margin-top:8px">
+    <button id="bindsCancel" class="ghost">Cancel</button>
+    <button id="bindsGo" class="primary">Use these keys</button>
+  </div>
+</dialog>
 <dialog id="dlgMacro">
   <h2>Send keybinds to WoW</h2>
-  <p class="hint">Paste each line into the WoW chat box and press Enter, one line at a time, top to bottom. The last line saves them. Each action bar button gets the key shown here, and any other key it had is removed. Buttons without a key here are left alone.</p>
+  <p class="hint">Paste each line into the WoW chat box and press Enter, top to bottom (usually just two). The last line applies and saves them. Each action bar button gets the key shown here, and any other key it had is removed. Buttons without a key here are left alone.</p>
   <pre class="macro" id="macroText"></pre>
   <div class="row" style="justify-content:flex-end; margin-top:8px">
     <button id="macroCopy">Copy all</button>
@@ -911,6 +924,9 @@ function barsSideHTML() {
     <h2>Keybinds</h2>
     <div class="row" style="justify-content:space-between">
       <span class="hint">${nb} button${nb === 1 ? " has" : "s have"} a key.</span>
+    </div>
+    <div class="row">
+      <button class="small" data-act="binds-import" title="Read the keys your action bars use in game">Import from WoW</button>
       <button class="small" data-act="wow-export" ${nb ? "" : "disabled"} title="Get chat lines that apply these keys in game">Send to WoW</button>
     </div>
   </div>
@@ -1190,6 +1206,7 @@ main.addEventListener("click", async e => {
     if (act === "cap-cancel") { ui.capture = null; renderBars(); return; }
     if (act === "cap-clear") { setBind(ui.capture, null); return; }
     if (act === "wow-export") { openWowExport(); return; }
+    if (act === "binds-import") { openBindsImport(); return; }
     if (act === "binds-clear") {
       if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your zones and abilities stay where they are.", "Clear keybinds")) return;
       state.binds = {}; save(); renderBars(); return;
@@ -1528,19 +1545,50 @@ function previewWow() {
   m.textContent = total ? `Found ${total} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds in that. Pick your bindings-cache.wtf file.";
 }
 // Export as /run lines that each fit WoW's 255-character chat limit.
+// Keys are packed as "s-Q@15" (Shift-Q on bar 2 button 5; bar digit is bar - 1) into K over as few lines as possible,
+// then one last line applies and saves them.
+const WOW_APPLY = "/run for k,b,n in K:gsub(\"(%l)%-\",{a=\"ALT-\",c=\"CTRL-\",s=\"SHIFT-\"}):gmatch\"(%S+)@(%d)(%d+)\"do c=(b>\"0\"and\"MULTIACTIONBAR\"..b..\"BUTTON\"or\"ACTIONBUTTON\")..n o=GetBindingKey(c)if o then SetBinding(o)end SetBinding(k,c)end SaveBindings(GetCurrentBindingSet())";
+const WOW_BINDS_LINE = "/run t=\"\"for i=1,GetNumBindings()do c,_,k=GetBinding(i)t=k and c:find\"TIONB\"and t..\" \"..c..\"@\"..k or t end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)";
 function wowLines() {
-  const pairs = Object.entries(state.binds).map(([slot, key]) => { const [b, i] = slot.split("-"); return [key, BAR_CMD(+b) + i]; });
-  const head = '/run local function f(k,c)for _,o in ipairs({GetBindingKey(c)})do SetBinding(o)end SetBinding(k,c)end ';
-  const lines = []; let cur = head;
-  pairs.forEach(([k, c]) => {
-    const part = `f(${JSON.stringify(k)},"${c}")`;
-    if ((cur + part).length > 255) { lines.push(cur.trim()); cur = head; }
-    cur += part;
-  });
-  if (cur !== head) lines.push(cur.trim());
-  lines.push("/run SaveBindings(GetCurrentBindingSet()) print(\"Keybind Atlas: keybinds saved\")");
+  const toks = Object.entries(state.binds).map(([slot, key]) => key.replace(/ALT-/g, "a-").replace(/CTRL-/g, "c-").replace(/SHIFT-/g, "s-").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + "@" + (slot.split("-")[0] - 1) + slot.split("-")[1]);
+  const lines = []; let cur = "";
+  const flush = () => { if (cur) lines.push(`/run K=${lines.length ? "K.." : ""}"${cur}"`); cur = ""; };
+  toks.forEach(t => { if (`/run K=K.."${cur} ${t}"`.length > 255) flush(); cur += " " + t; });
+  flush();
+  lines.push(WOW_APPLY);
   return lines;
 }
+// Read "COMMAND@KEY" pairs from the bindings line; only action bar buttons count.
+function parseBindsLine(text) {
+  const binds = {};
+  for (const [, cmd, key] of text.matchAll(/(\S+?)@(\S+)/g)) {
+    let m = /^ACTIONBUTTON(\d+)$/.exec(cmd), slot = null;
+    if (m) slot = "1-" + m[1];
+    else if ((m = /^MULTIACTIONBAR(\d)BUTTON(\d+)$/.exec(cmd))) slot = (+m[1] + 1) + "-" + m[2];
+    if (slot && +slot.split("-")[1] <= 12 && +slot.split("-")[0] <= 8 && !binds[slot]) binds[slot] = key.toUpperCase();
+  }
+  return binds;
+}
+function openBindsImport() { $("#bindsLine").textContent = WOW_BINDS_LINE; $("#bindsText").value = ""; $("#bindsMsg").textContent = ""; $("#dlgBinds").showModal(); }
+$("#bindsCancel").onclick = () => $("#dlgBinds").close();
+$("#bindsCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(WOW_BINDS_LINE); toast("Copied. Paste it into WoW chat and press Enter."); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("#bindsLine")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
+};
+$("#bindsText").oninput = () => {
+  const t = $("#bindsText").value.trim(), m = $("#bindsMsg"); if (!t) { m.textContent = ""; return; }
+  const b = parseBindsLine(t), n = Object.keys(b).length, bars = [...new Set(Object.keys(b).map(k => +k.split("-")[0]))].sort((x, y) => x - y);
+  m.style.color = n ? "var(--ok)" : "var(--danger)";
+  m.textContent = n ? `Found ${n} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds in that. It should look like ACTIONBUTTON1@1 …";
+};
+$("#bindsGo").onclick = () => {
+  const b = parseBindsLine($("#bindsText").value); const n = Object.keys(b).length;
+  if (!n) { $("#bindsText").oninput(); return; }
+  state.binds = b;
+  Object.keys(b).forEach(k => { const bar = state.bars.find(x => x.n === +k.split("-")[0]); if (bar) bar.show = true; });
+  ui.barsDone = true; saveUI(); save(); $("#dlgBinds").close(); render();
+  toast(`${n} keybinds imported from WoW.`);
+};
 function openWowExport() { $("#macroText").textContent = wowLines().join("\n"); $("#dlgMacro").showModal(); }
 $("#macroClose").onclick = () => $("#dlgMacro").close();
 $("#macroCopy").onclick = async () => {
