@@ -396,7 +396,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <p class="hint">No addon needed. Log into the character, paste this one line into the chat box and press Enter. The first time, WoW may ask you to allow scripts; say yes and paste it again.</p>
   <pre class="macro" id="gameLines"></pre>
   <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy line</button></div>
-  <p class="hint">A text box appears at the top of your screen with a long line starting <code>/k;</code>. Click it (that selects everything), press Ctrl+C, then paste it here. Type <code>/reload</code> afterwards to get rid of the box. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
+  <p class="hint">A text box appears at the top of your screen with a long line starting <code>/k;</code>. Click it (that selects everything), press Ctrl+C, then Esc, and paste it here. Type <code>/reload</code> afterwards to get rid of the box. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
   <textarea id="gameText" rows="6" placeholder="/k;1Heroic Strike;2Charge;3Rend…"></textarea>
   <div class="row" style="margin-top:6px">
     <label class="inline" for="gameTarget">Put them in</label>
@@ -1653,7 +1653,7 @@ $("#editGo").onclick = () => {
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
-const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)t=n and t..\";\"..s..n or t end e=CreateFrame(\"EditBox\",nil,UIParent,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetFocus()"];
+const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)t=n and t..\";\"..s..n or t end e=CreateFrame(\"EditBox\",nil,UIParent,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)"];
 function openGameImport() {
   $("#gameLines").textContent = GAME_LINES.join("\n");
   $("#gameText").value = ""; $("#gameMsg").textContent = "";
