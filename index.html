@@ -397,7 +397,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <pre class="macro" id="gameLines"></pre>
   <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy line</button></div>
   <p class="hint">A text box appears at the top of your screen. Click it (that selects everything), press Ctrl+C, and click anywhere else: the box closes by itself. Paste it here. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
-  <textarea id="gameText" rows="6" placeholder="0;1Heroic Strike;2Charge;3Rend;4;5…"></textarea>
+  <textarea id="gameText" rows="6" placeholder=";1Heroic Strike;2Charge;3Rend;4;5…"></textarea>
   <div class="row" style="margin-top:6px">
     <label class="inline" for="gameTarget">Put them in</label>
     <select id="gameTarget"></select>
@@ -1653,7 +1653,7 @@ $("#editGo").onclick = () => {
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
-const GAME_LINES = ["/run t=0for s=1,180 do k,i=GetActionInfo(s)t=t..\";\"..s..(k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)or\"\")end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)"];
+const GAME_LINES = ["/run t=\"\"for s=1,180 do k,i=GetActionInfo(s)t=t..\";\"..s..(k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)or\"\")end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)"];
 function openGameImport() {
   $("#gameLines").textContent = GAME_LINES.join("\n");
   $("#gameText").value = ""; $("#gameMsg").textContent = "";
@@ -1682,7 +1682,7 @@ function guessClassFromSpells(names) {
 }
 function parseGame(text) {
   const out = { cls: "", slots: [], binds: {}, book: [] };
-  const one = text.trim().match(/^(?:\/k;)?((?:\d+[^;]*;?)+)$/s); // "0;1Holy Strike;2;3Judgement;..." (older lines started with /k)
+  const one = text.trim().match(/^(?:\/k)?;?((?:\d+[^;]*;?)+)$/s); // ";1Holy Strike;2;3Judgement;..." (older lines started with /k)
   if (one) {
     one[1].split(";").forEach(part => {
       const m = /^(\d+)(\D.*)$/.exec(part.trim()); if (!m) return;
@@ -1710,7 +1710,7 @@ $("#gameText").oninput = () => {
   if (!$("#gameText").value.trim()) { m.textContent = ""; return; }
   const n = g.slots.length + g.book.length;
   m.style.color = n ? "var(--ok)" : "var(--danger)";
-  m.textContent = n ? `Found ${g.cls ? "a " + g.cls : "a character"}: ${g.slots.length} things on your bars${g.skipped ? ` (skipped ${g.skipped} profession spell${g.skipped > 1 ? "s" : ""})` : ""}${g.book.length ? `, ${g.book.length} spells in your spellbook` : ""}${Object.keys(g.binds).length ? `, ${Object.keys(g.binds).length} keybinds` : ""}.` : "That doesn't look like the text from the game. It should look like 0;1Holy Strike;2;3Judgement…";
+  m.textContent = n ? `Found ${g.cls ? "a " + g.cls : "a character"}: ${g.slots.length} things on your bars${g.skipped ? ` (skipped ${g.skipped} profession spell${g.skipped > 1 ? "s" : ""})` : ""}${g.book.length ? `, ${g.book.length} spells in your spellbook` : ""}${Object.keys(g.binds).length ? `, ${Object.keys(g.binds).length} keybinds` : ""}.` : "That doesn't look like the text from the game. It should look like ;1Holy Strike;2;3Judgement…";
 };
 $("#gameGo").onclick = () => {
   const g = parseGame($("#gameText").value);
