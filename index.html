@@ -532,7 +532,7 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 9";
+const BUILD = "Nov 8 · 10";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 
@@ -543,6 +543,7 @@ function normalize(s) {
   s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
   s.binds = s.binds || {};
   s.endcaps = s.endcaps !== false;
+  s.flip = !!s.flip;
   s.cells = s.cells || {};
   s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", base: c.base || guessBase(c.name), abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null, placeholder: a.placeholder || undefined })) }));
   return s;
@@ -593,9 +594,10 @@ function layout() {
   const out = { cells: [], pos: {}, at: {}, W: 1, H: 1, bars: [] };
   if (!vis.length) return out;
   const minX = Math.min(...vis.map(b => b.x)), minY = Math.min(...vis.map(b => b.y));
+  const span = Math.max(...vis.map(b => b.y - minY + barGeom(b).h));
   vis.forEach(b => {
     const g = barGeom(b);
-    const bx = b.x - minX, by = b.y - minY;
+    const bx = b.x - minX, by = state.flip ? span - (b.y - minY) - g.h : b.y - minY;
     out.bars.push({ n: b.n, x: bx, y: by, w: g.w, h: g.h });
     for (let i = 0; i < b.icons; i++) {
       const a = Math.floor(i / g.per), c = i % g.per;
@@ -884,6 +886,7 @@ function planBarHTML(title) {
         <button data-plan="zones" aria-pressed="${z}">Edit categories</button>
       </div>
       ${z ? `<label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Category names</label>` : `<label class="inline"><input type="checkbox" id="chkMap" ${ui.map !== false ? "checked" : ""}> Category map</label>`}
+      <label class="inline"><input type="checkbox" class="chkFlip" ${state.flip ? "checked" : ""}> Flip bar order</label>
     </div>
   </div>`;
 }
@@ -956,6 +959,7 @@ function barsSideHTML() {
           </div>`).join("")}
       </div>
       <div class="row">
+        <label class="inline"><input type="checkbox" class="chkFlip" ${state.flip ? "checked" : ""}> Flip bar order</label>
         <button class="small ghost" data-act="preset-default">Reset to Blizzard default</button>
         <button class="small ghost danger" data-act="binds-clear" ${nb ? "" : "disabled"}>Clear all keybinds</button>
       </div>
@@ -1146,7 +1150,7 @@ window.addEventListener("pointermove", e => {
   if (drag) {
     const dx = Math.round((e.clientX - drag.sx) / drag.unit), dy = Math.round((e.clientY - drag.sy) / drag.unit);
     if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) drag.moved = true;
-    const nx = Math.max(0, drag.ox + dx), ny = Math.max(0, drag.oy + dy);
+    const nx = drag.ox + dx, ny = drag.oy + (state.flip ? -dy : dy);
     if (drag.moved && (nx !== drag.bar.x || ny !== drag.bar.y)) {
       // keep everything non-negative relative to other bars
       drag.bar.x = nx; drag.bar.y = ny; refreshBarsGrid(); $("#gridWrap [data-grid]")?.classList.add("dragging");
@@ -1338,6 +1342,7 @@ main.addEventListener("change", e => {
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
   if (t.id === "firstClassKit" || t.id === "newClassKit") { const n = t.id.replace("Kit", "Name"); $("#" + n).placeholder = t.value && t.value !== "-" ? `${t.value} (or a spec name)` : "Name or spec, e.g. Ret Paladin"; return; }
   if (t.id === "baseClass" && curClass()) { curClass().base = t.value || null; save(); refreshClass(); return; }
+  if (t.classList.contains("chkFlip")) { state.flip = t.checked; save(); render(); return; }
   if (t.id === "chkCaps") { state.endcaps = t.checked; save(); render(); return; }
   if (t.id === "presetSel") { ui.preset = t.value; $("#presetNote").textContent = PRESETS[t.value].note; return; }
   const br = t.closest("[data-bar]");
