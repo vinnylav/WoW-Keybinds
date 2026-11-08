@@ -686,7 +686,8 @@ function zoneLabels(L) {
 
 /* ---------------- class kits ----------------
    What each class uses for the jobs people most want on the same key everywhere.
-   Names only (no cooldowns or numbers); edit freely. Based on current Retail names. */
+   Names only (no cooldowns or numbers); edit freely. WoW Forever has the nine original
+   classes; names follow the Classic-era spellbook. Paladins and Hunters have no interrupt there. */
 const ROLES = [
   ["Interrupt", ["interrupt", "int", "kick"]],
   ["Stun / CC", ["stun", "cc", "control"]],
@@ -695,19 +696,15 @@ const ROLES = [
   ["Taunt", ["taunt"]],
 ];
 const CLASS_KITS = {
-  "Death Knight": { color: "#c41e3a", Interrupt: ["Mind Freeze", 47528], "Stun / CC": ["Asphyxiate"], Defensive: ["Icebound Fortitude"], Movement: ["Death's Advance"], Taunt: ["Dark Command"] },
-  "Demon Hunter": { color: "#a330c9", Interrupt: ["Disrupt", 183752], "Stun / CC": ["Chaos Nova"], Defensive: ["Blur"], Movement: ["Fel Rush"], Taunt: ["Torment"] },
-  "Druid": { color: "#ff7c0a", Interrupt: ["Skull Bash", 106839], "Stun / CC": ["Mighty Bash"], Defensive: ["Barkskin"], Movement: ["Dash"], Taunt: ["Growl"] },
-  "Evoker": { color: "#33937f", Interrupt: ["Quell", 351338], "Stun / CC": ["Sleep Walk"], Defensive: ["Obsidian Scales"], Movement: ["Hover"] },
-  "Hunter": { color: "#aad372", Interrupt: ["Counter Shot", 147362], "Stun / CC": ["Intimidation"], Defensive: ["Aspect of the Turtle"], Movement: ["Disengage"] },
-  "Mage": { color: "#3fc7eb", Interrupt: ["Counterspell", 2139], "Stun / CC": ["Frost Nova"], Defensive: ["Ice Block"], Movement: ["Blink"] },
-  "Monk": { color: "#00ff98", Interrupt: ["Spear Hand Strike", 116705], "Stun / CC": ["Leg Sweep"], Defensive: ["Fortifying Brew"], Movement: ["Roll"], Taunt: ["Provoke"] },
-  "Paladin": { color: "#f48cba", Interrupt: ["Rebuke", 96231], "Stun / CC": ["Hammer of Justice"], Defensive: ["Divine Shield"], Movement: ["Divine Steed"], Taunt: ["Hand of Reckoning"] },
-  "Priest": { color: "#ffffff", Interrupt: ["Silence", 15487], "Stun / CC": ["Psychic Scream"], Defensive: ["Desperate Prayer"], Movement: ["Angelic Feather"] },
-  "Rogue": { color: "#fff468", Interrupt: ["Kick", 1766], "Stun / CC": ["Kidney Shot"], Defensive: ["Cloak of Shadows"], Movement: ["Sprint"] },
-  "Shaman": { color: "#0070dd", Interrupt: ["Wind Shear", 57994], "Stun / CC": ["Capacitor Totem"], Defensive: ["Astral Shift"], Movement: ["Ghost Wolf"] },
-  "Warlock": { color: "#8788ee", Interrupt: ["Spell Lock", 19647], "Stun / CC": ["Shadowfury"], Defensive: ["Unending Resolve"], Movement: ["Demonic Circle: Teleport"] },
-  "Warrior": { color: "#c69b6d", Interrupt: ["Pummel", 6552], "Stun / CC": ["Storm Bolt"], Defensive: ["Shield Wall"], Movement: ["Charge"], Taunt: ["Taunt"] },
+  "Druid": { color: "#ff7c0a", Interrupt: ["Feral Charge", 16979], "Stun / CC": ["Bash", 5211], Defensive: ["Barkskin", 22812], Movement: ["Dash", 1850], Taunt: ["Growl", 6795] },
+  "Hunter": { color: "#aad372", "Stun / CC": ["Scatter Shot", 19503], Defensive: ["Deterrence", 19263], Movement: ["Aspect of the Cheetah", 5118], Taunt: ["Growl (pet)", 2649] },
+  "Mage": { color: "#3fc7eb", Interrupt: ["Counterspell", 2139], "Stun / CC": ["Frost Nova", 122], Defensive: ["Ice Block", 11958], Movement: ["Blink", 1953] },
+  "Paladin": { color: "#f48cba", "Stun / CC": ["Hammer of Justice", 853], Defensive: ["Divine Shield", 642], Movement: ["Blessing of Freedom", 1044] },
+  "Priest": { color: "#ffffff", Interrupt: ["Silence", 15487], "Stun / CC": ["Psychic Scream", 8122], Defensive: ["Power Word: Shield", 17] },
+  "Rogue": { color: "#fff468", Interrupt: ["Kick", 1766], "Stun / CC": ["Kidney Shot", 408], Defensive: ["Evasion", 5277], Movement: ["Sprint", 2983] },
+  "Shaman": { color: "#0070dd", Interrupt: ["Earth Shock", 8042], "Stun / CC": ["Earthbind Totem", 2484], Defensive: ["Grounding Totem", 8177], Movement: ["Ghost Wolf", 2645] },
+  "Warlock": { color: "#8788ee", Interrupt: ["Spell Lock (Felhunter)", 19244], "Stun / CC": ["Fear", 5782], Defensive: ["Shadow Ward", 6229] },
+  "Warrior": { color: "#c69b6d", Interrupt: ["Pummel", 6552], "Stun / CC": ["Intimidating Shout", 5246], Defensive: ["Shield Wall", 871], Movement: ["Charge", 100], Taunt: ["Taunt", 355] },
 };
 // Zone that best matches a role, by name.
 function zoneForRole(role) {
@@ -723,7 +720,7 @@ function newClassFormHTML(id, first) {
     <h2>${first ? "Add your first class" : "New class"}</h2>
     <div class="row"><select id="${id}Kit" aria-label="Class" style="flex:1"><option value="">Pick a class…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}<option value="-">Other (just a name)</option></select></div>
     <div class="row"><input type="text" id="${id}Name" placeholder="Name or spec, e.g. Ret Paladin" aria-label="Class or spec name"><button class="primary" type="submit">Add</button></div>
-    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. The names come from current Retail; rename any that differ in Forever.</p>
+    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. Names follow the Classic-era spellbook, so rename any that changed in Forever.</p>
     ${first ? `<p class="hint">Or <button type="button" class="small" data-act="game-import">Import from game</button> to read your spellbook and bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
   </form>`;
 }
