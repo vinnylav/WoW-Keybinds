@@ -234,7 +234,7 @@ input[type=text], select, textarea {
 <style>
 /* ---- v2 additions ---- */
 .side { overflow-x: hidden; }
-.zone-row { gap: 6px; padding: 4px 2px; }
+.zone-row { gap: 6px; padding: 4px 2px; cursor: pointer; }
 .zone-row input[type=text] { flex: 1 1 0; width: 0; }
 .zone-row button { padding: 2px 6px !important; }
 .bar-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; padding: 6px 2px; border-top: 1px solid rgba(255,255,255,.08); }
@@ -263,6 +263,11 @@ details.manual { border-top: 1px solid rgba(255,255,255,.1); padding-top: 8px; }
 details.manual summary { cursor: pointer; font: 600 15px var(--f-fantasy); color: #d9c79a; }
 .lbl-sm { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .guide li .g-act { grid-column: 2 / -1; grid-row: auto; margin-top: 4px; }
+.tab.step i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid currentColor; font: 600 11px var(--f-mono); margin-right: 6px; opacity: .8; }
+.welcome { gap: 10px; }
+.welcome h2 { font-size: 18px !important; }
+.next-row { justify-content: flex-end; }
+.help-steps { display: grid; gap: 8px; padding-left: 20px; margin: 8px 0; }
 pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
 </style>
 </head>
@@ -272,7 +277,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
   <div class="hdr-actions">
     <span class="status" id="status"></span>
-    <button id="btnHelp" class="small ghost" aria-label="Show getting started guide">Guide</button>
+    <button id="btnHelp" class="small ghost">How it works</button>
     <button id="btnExport" class="small">Export JSON</button>
     <button id="btnImport" class="small">Import JSON</button>
   </div>
@@ -328,6 +333,17 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
+<dialog id="dlgHelp">
+  <h2>How it works</h2>
+  <ol class="help-steps">
+    <li><b>Bars &amp; keys.</b> Import your Edit Mode layout and keybinds from WoW, or use the default Blizzard UI. Click a button and press a key to change it.</li>
+    <li><b>Zones.</b> Paint areas of your bars (Builders, Interrupt, Defense…). The same zones apply to every class.</li>
+    <li><b>Abilities.</b> Pick a class, add its abilities and choose each one's zone. They land in the same spot on every class, so your muscle memory carries over.</li>
+  </ol>
+  <p class="hint"><b>Compare</b> shows all classes side by side. <b>Export JSON</b> backs everything up. Your work saves in this browser only.</p>
+  <div class="row" style="justify-content:flex-end; margin-top:12px"><button id="helpClose" class="primary">Got it</button></div>
+</dialog>
+
 <dialog id="dlgConfirm">
   <h2 id="confirmTitle">Are you sure?</h2>
   <p class="hint" id="confirmText"></p>
@@ -367,10 +383,10 @@ function bar(n, show, orient, lines, x, y, icons = 12) { return { n, show, orien
 const PRESETS = {
   default: {
     name: "Blizzard default UI",
-    note: "Bar 1 at the bottom with bars 2 and 3 stacked above it, bars 4 and 5 vertical on the right. Bar 1 keeps the default 1 to = keys.",
+    note: "Bar 1 at the bottom with bars 2 and 3 stacked above it. Bars 4 and 5 (vertical, on the right) are off until you tick them. Bar 1 keeps the default 1 to = keys.",
     bars: () => [
       bar(1, true, "h", 1, 0, 11), bar(2, true, "h", 1, 0, 10), bar(3, true, "h", 1, 0, 9),
-      bar(4, true, "v", 1, 14, 0), bar(5, true, "v", 1, 13, 0),
+      bar(4, false, "v", 1, 14, 0), bar(5, false, "v", 1, 13, 0),
       bar(6, false, "h", 1, 0, 13), bar(7, false, "h", 1, 0, 14), bar(8, false, "h", 1, 0, 15),
     ],
     binds: () => { const b = {}; ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="].forEach((k, i) => b["1-" + (i + 1)] = k); return b; },
@@ -423,7 +439,7 @@ function save() {
   }, 250);
 }
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
-function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
 function setStatus(t) { $("#status").textContent = t; }
 
@@ -502,7 +518,7 @@ function layout() {
 }
 const slotLabel = id => { const k = state.binds[id]; if (k) return shortKey(k); const [b, i] = id.split("-"); return "B" + b + "·" + i; };
 const zoneById = id => state.zones.find(z => z.id === id);
-const curClass = () => state.classes.find(c => c.id === ui.tab);
+const curClass = () => state.classes.find(c => c.id === ui.cls) || null;
 const visibleSlots = () => layout().cells.map(c => c.id);
 const zoneCells = zid => layout().cells.filter(c => state.cells[c.id] === zid).sort((a, b) => a.r - b.r || a.c - b.c).map(c => c.id);
 const initials = n => { const w = String(n).replace(/[^\p{L}\p{N} ]/gu, "").split(/\s+/).filter(Boolean); if (!w.length) return "?"; return (w.length === 1 ? w[0].slice(0, 2) : w.slice(0, 3).map(x => x[0]).join("")).toUpperCase(); };
@@ -599,58 +615,62 @@ function zoneLabels(L) {
   return out;
 }
 
-/* ---------------- tabs ---------------- */
+/* ---------------- mode switch ---------------- */
+const MODES = [["bars", "1", "Bars & keys"], ["zones", "2", "Zones"], ["abilities", "3", "Abilities"]];
 function renderTabs() {
-  const t = [
-    `<button class="tab" role="tab" aria-selected="${ui.tab === "bars"}" data-tab="bars">Bars</button>`,
-    `<button class="tab" role="tab" aria-selected="${ui.tab === "zones"}" data-tab="zones">Zones</button>`,
-  ];
-  state.classes.forEach(c => t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === c.id}" data-tab="${c.id}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`));
-  t.push(`<button class="tab" data-act="add-class" title="Add a class or spec">+ Class</button>`);
-  t.push(`<button class="tab" role="tab" aria-selected="${ui.tab === "overview"}" data-tab="overview">Compare</button>`);
-  $("#tabs").innerHTML = t.join("");
+  $("#tabs").innerHTML = MODES.map(([k, n, label]) => `<button class="tab step" role="tab" aria-selected="${ui.tab === k}" data-tab="${k}"><i>${n}</i>${label}</button>`).join("")
+    + `<button class="tab" role="tab" aria-selected="${ui.tab === "overview"}" data-tab="overview">Compare</button>`;
 }
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.act === "add-class") return addClass();
-  ui.tab = b.dataset.tab; ui.sel = null; ui.editing = null; ui.capture = null; saveUI(); render();
+  go(b.dataset.tab);
 });
-function addClass(from = null) {
+function go(tab) { ui.tab = tab; ui.sel = null; ui.editing = null; ui.capture = null; saveUI(); render(); window.scrollTo({ top: 0 }); }
+function addClass(from = null, name = "New class") {
   const c = from
     ? { ...JSON.parse(JSON.stringify(from)), id: uid(), name: from.name + " copy" }
-    : { id: uid(), name: "New class", color: "#c7c3b8", abilities: [] };
+    : { id: uid(), name, color: "#c7c3b8", abilities: [] };
   if (from) c.abilities.forEach(a => a.id = uid());
-  state.classes.push(c); ui.tab = c.id; ui.editing = null; save(); render();
-  setTimeout(() => { const i = $("#className"); if (i) { i.focus(); i.select(); } }, 0);
+  state.classes.push(c); ui.cls = c.id; ui.tab = "abilities"; ui.editing = null; save(); saveUI(); render();
+  if (from || name === "New class") setTimeout(() => { const i = $("#className"); if (i) { i.focus(); i.select(); } }, 0);
+  else setTimeout(() => $("#newAbName")?.focus(), 0);
 }
 
 /* ---------------- main render ---------------- */
 function render() {
-  if (!["bars", "zones", "overview"].includes(ui.tab) && !curClass()) ui.tab = "bars";
+  if (!["bars", "zones", "abilities", "overview"].includes(ui.tab)) ui.tab = state.classes.some(c => c.id === ui.tab) ? (ui.cls = ui.tab, "abilities") : "bars";
+  if (!curClass()) ui.cls = state.classes[0]?.id || null;
   renderTabs();
   if (ui.tab === "bars") renderBars();
   else if (ui.tab === "zones") renderZones();
   else if (ui.tab === "overview") renderOverview();
-  else renderClass();
+  else if (curClass()) renderClass();
+  else renderNoClass();
 }
+// Only shown until the bars are set up: the one decision a new visitor has to make.
 function guideHTML() {
-  if (ui.guide === "hidden") return "";
-  const steps = [
-    ["Pick your starting layout", "Import your Edit Mode layout and keybinds from WoW, or start from the default Blizzard UI.", !!ui.barsDone, "bars", `<button class="small primary" data-act="edit-import">Import Layout from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI Layout</button>`],
-    ["Paint your zones", "On the Zones tab, pick a zone (Builders, Spenders, Offense, Defense and Interrupt are ready to go, and you can add your own) and click or drag across the buttons it should own.", state.zones.length > 0 && Object.keys(state.cells).length > 0, "zones"],
-    ["Add a class", "Click + Class at the top and name it after your class or spec.", state.classes.length > 0, null],
-    ["Slot in abilities", "In a class tab, add an ability and pick its zone. It lands in the first free button of that zone, and you can drag it around.", state.classes.some(c => c.abilities.some(a => a.cell)), state.classes[0]?.id],
-    ["Compare and back up", "The Compare tab lines every class up on the same bars. Export JSON to keep a backup or share your layout.", !!ui.exported, "overview"],
-  ];
-  const next = steps.findIndex(s => !s[2]);
-  return `<div class="guide" role="region" aria-label="Getting started">
-    <div class="row" style="justify-content:space-between">
-      <h2>Getting started</h2>
-      <button class="small ghost" data-act="hide-guide">${next === -1 ? "Done" : "Hide"}</button>
-    </div>
-    <p class="hint">Everything saves in this browser only. Nothing is uploaded.</p>
-    <ol>${steps.map((s, i) => `<li class="${s[2] ? "done" : i === next ? "now" : ""}"><b>${s[0]}</b><span>${s[1]}</span>${i === next && s[4] ? `<div class="row g-act">${s[4]}</div>` : i === next && s[3] && ui.tab !== s[3] ? `<button class="small" data-goto="${s[3]}">Go</button>` : ""}</li>`).join("")}</ol>
+  if (ui.barsDone || ui.tab !== "bars") return "";
+  return `<div class="guide welcome" role="region" aria-label="Welcome">
+    <h2>Welcome! Start with your action bars</h2>
+    <p class="hint">Bring in the bars and keybinds you already use in WoW, or start from the default Blizzard UI. Zones and abilities come next. Everything saves in this browser only.</p>
+    <div class="row"><button class="primary" data-act="edit-import">Import Layout from WoW</button><button data-act="keep-default">Use Default Blizzard UI Layout</button></div>
   </div>`;
+}
+function nextHTML(tab, label) { return `<div class="row next-row"><button class="primary" data-goto="${tab}">${label} →</button></div>`; }
+function renderNoClass() {
+  $("#main").innerHTML = `
+  <section class="main-col">
+    <h2>Abilities</h2>
+    <p class="hint">Abilities belong to a class or spec. Add your first one, then drop its abilities into your zones.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: true })}</div>
+  </section>
+  <aside class="side" id="side">
+    <form id="firstClass" style="display:grid;gap:8px">
+      <h2>Add your first class</h2>
+      <div class="row"><input type="text" id="firstClassName" placeholder="e.g. Ret Paladin" aria-label="Class or spec name" required><button class="primary" type="submit">Add</button></div>
+    </form>
+  </aside>`;
+  setTimeout(() => $("#firstClassName")?.focus(), 0);
 }
 
 /* ===== Bars view ===== */
@@ -660,9 +680,10 @@ function renderBars() {
   <section class="main-col">
     ${guideHTML()}
     <h2>Your action bars</h2>
-    <p class="hint">These are your action bars. Zones and abilities go on these buttons in the next steps.</p>
+    <p class="hint">Click any button, then press the key you use for it. Drag a bar to move it.</p>
     ${capBar}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
+    ${ui.barsDone ? nextHTML("zones", "Next: paint your zones") : ""}
   </section>
   <aside class="side" id="side">${barsSideHTML()}</aside>`;
 }
@@ -670,12 +691,10 @@ function barsSideHTML() {
   const opt = (v, cur, label = v) => `<option value="${v}" ${String(v) === String(cur) ? "selected" : ""}>${label}</option>`;
   const nb = Object.keys(state.binds).length;
   return `
-  <div style="display:grid;gap:8px">
-    <h2>Starting layout</h2>
-    <p class="hint">Bring in your Edit Mode bars and keybinds, or use the default Blizzard UI.</p>
-    <div class="row"><button class="primary" data-act="edit-import">Import Layout from WoW</button></div>
-    <div class="row"><button data-act="keep-default">Use Default Blizzard UI Layout</button></div>
-  </div>
+  ${ui.barsDone ? `<div style="display:grid;gap:8px">
+    <h2>Change layout</h2>
+    <div class="row"><button class="small" data-act="edit-import">Import Layout from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI</button></div>
+  </div>` : ""}
   <div style="display:grid;gap:8px">
     <h2>Keybinds</h2>
     <div class="row" style="justify-content:space-between">
@@ -719,10 +738,11 @@ function renderZones() {
   $("#main").innerHTML = `
   <section class="main-col">
     ${guideHTML()}
-    <h2>Zone map</h2>
-    <p class="hint">Pick a zone on the right, then click or drag across buttons to paint it. Dragging from a button that already has that zone erases instead. Every class uses this same map.</p>
+    <h2>Zones</h2>
+    <p class="hint">Zones are areas of your bars that hold the same kind of ability on every class. Pick a zone on the right, then click or drag across buttons to paint it. Drag again over painted buttons to erase.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "zones", showLabels: ui.labels })}</div>
     <div class="row"><label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Show zone names</label></div>
+    ${Object.keys(state.cells).length ? nextHTML("abilities", "Next: add abilities") : ""}
   </section>
   <aside class="side" id="side">
     <div style="display:grid;gap:8px">
@@ -760,16 +780,17 @@ function renderClass() {
   <section class="main-col">
     ${guideHTML()}
     <div class="row" style="justify-content:space-between">
-      <h2>${esc(cls.name)} bars</h2>
+      <h2>${esc(cls.name)}</h2>
       <div class="row">
         <label class="inline"><input type="checkbox" id="chkLabelsC" ${ui.labelsClass ? "checked" : ""}> Zone names</label>
         <button class="small" data-act="autoplace" ${unplaced ? "" : "disabled"}>Auto-place ${unplaced ? "(" + unplaced + ")" : ""}</button>
       </div>
     </div>
-    <p class="hint">Select an ability, then click a button to move it there (it swaps if the button is taken). Its zone lights up. You can also drag abilities between buttons or from the list. Click an empty button to add an ability there.</p>
+    <p class="hint">Add an ability on the right and pick its zone; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass })}</div>
     ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
     <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
+    ${state.classes.length > 1 ? nextHTML("overview", "Compare all classes") : ""}
   </section>
   <aside class="side" id="side">${classSideHTML(cls)}</aside>`;
 }
@@ -778,13 +799,14 @@ function classSideHTML(cls) {
   let h = `
   <div style="display:grid;gap:8px">
     <h2>Class</h2>
+    <div class="row"><select id="classPick" aria-label="Class" style="flex:1">${state.classes.map(c => `<option value="${c.id}" ${c.id === cls.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><button class="small" data-act="new-class">+ New</button></div>
     <div class="row"><input type="color" id="classColor" value="${esc(cls.color)}" aria-label="Class color"><input type="text" id="className" value="${esc(cls.name)}" aria-label="Class name"></div>
-    <div class="row"><button class="small" data-act="dup-class">Duplicate</button><button class="small danger" data-act="del-class">Delete class</button></div>
+    <div class="row"><button class="small ghost" data-act="dup-class">Duplicate</button><button class="small ghost danger" data-act="del-class">Delete</button></div>
   </div>
   <form id="addAb" style="display:grid;gap:6px">
     <h2>Add ability</h2>
     <div class="row"><input type="text" id="newAbName" placeholder="${ui.addCell ? "Ability for " + esc(slotLabel(ui.addCell)) : "Ability name"}" aria-label="Ability name" required></div>
-    <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone || "")}</select><button class="primary" type="submit">Add</button></div>
+    <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
   </form>
   <div style="display:grid;gap:8px">
@@ -857,7 +879,7 @@ function renderOverview() {
     ${guideHTML()}
     <h2>All classes</h2>
     <p class="hint">Same bars and zones, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
-    <div class="ov">${cards || `<p class="hint">No classes yet. Use + Class to add one.</p>`}</div>
+    <div class="ov">${cards || `<p class="hint">No classes yet. Add one in step 3, Abilities.</p>`}</div>
     ${state.zones.length && state.classes.length ? `<h2 style="margin-top:12px">By zone</h2><div class="zmatrix">${table}</div>` : ""}
   </section>`;
 }
@@ -902,7 +924,7 @@ window.addEventListener("pointermove", e => {
   }
 });
 window.addEventListener("pointerup", () => {
-  if (paint) { paint = null; save(); const zl = $("#zoneList"); if (zl) zl.innerHTML = zoneListHTML() || ""; }
+  if (paint) { paint = null; save(); renderZones(); }
   if (drag) {
     const d = drag; drag = null;
     if (d.moved) { normalizeBarOrigin(); ui.barsDone = true; saveUI(); save(); refreshBarsGrid(); }
@@ -945,8 +967,8 @@ main.addEventListener("click", async e => {
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
   if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
-  const go = t.closest("[data-goto]");
-  if (go) { ui.tab = go.dataset.goto; ui.sel = ui.editing = null; saveUI(); render(); return; }
+  const goBtn = t.closest("[data-goto]");
+  if (goBtn) { go(goBtn.dataset.goto); return; }
 
   if (ui.tab === "bars") {
     if (act === "cap-cancel") { ui.capture = null; renderBars(); return; }
@@ -966,6 +988,8 @@ main.addEventListener("click", async e => {
   if (ui.tab === "zones") {
     const brush = t.closest("[data-brush]");
     if (brush) { ui.brush = brush.dataset.brush; render(); return; }
+    const zr = t.closest(".zone-row");
+    if (zr && !t.closest("input, button") && ui.brush !== zr.dataset.zone) { ui.brush = zr.dataset.zone; render(); return; }
     if (act === "starter-zones") { state.zones.push(...starterZones()); ui.brush = state.zones[0].id; save(); render(); return; }
     if (act === "add-zone") {
       const hue = Math.floor(Math.random() * 360);
@@ -989,7 +1013,7 @@ main.addEventListener("click", async e => {
     return;
   }
   if (ui.tab === "overview") {
-    const card = t.closest("[data-open]"); if (card) { ui.tab = card.dataset.open; saveUI(); render(); }
+    const card = t.closest("[data-open]"); if (card) { ui.cls = card.dataset.open; go("abilities"); }
     return;
   }
   const cls = curClass(); if (!cls) return;
@@ -1002,9 +1026,10 @@ main.addEventListener("click", async e => {
     save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free buttons in those zones. Paint more on the Zones tab."); return;
   }
   if (act === "dup-class") return addClass(cls);
+  if (act === "new-class") return addClass();
   if (act === "del-class") {
     if (!await confirmBox(`Delete ${cls.name}?`, `This removes the class and its ${cls.abilities.length} abilities. Export first if you might want it back.`, "Delete class")) return;
-    state.classes = state.classes.filter(c => c !== cls); ui.tab = "zones"; save(); render(); return;
+    state.classes = state.classes.filter(c => c !== cls); ui.cls = state.classes[0]?.id || null; save(); render(); return;
   }
   if (act === "close-edit") { ui.editing = null; refreshClass(); return; }
   if (act === "unplace") { const a = cls.abilities.find(x => x.id === t.closest("[data-id]").dataset.id); a.cell = null; save(); refreshClass(); return; }
@@ -1035,6 +1060,7 @@ function moveTo(cls, a, cellId) {
   a.cell = cellId;
 }
 main.addEventListener("submit", e => {
+  if (e.target.id === "firstClass") { e.preventDefault(); const n = $("#firstClassName").value.trim(); if (n) addClass(null, n); return; }
   if (e.target.id !== "addAb") return;
   e.preventDefault();
   const cls = curClass(); const name = $("#newAbName").value.trim(); if (!name) return;
@@ -1057,8 +1083,8 @@ main.addEventListener("input", e => {
     return;
   }
   const cls = curClass(); if (!cls) return;
-  if (t.id === "className") { cls.name = t.value; save(); renderTabs(); return; }
-  if (t.id === "classColor") { cls.color = t.value; save(); renderTabs(); return; }
+  if (t.id === "className") { cls.name = t.value; save(); const o = $(`#classPick option[value="${cls.id}"]`); if (o) o.textContent = t.value; return; }
+  if (t.id === "classColor") { cls.color = t.value; save(); return; }
   const ed = t.closest("[data-editor]");
   if (ed && t.dataset.f) {
     const a = cls.abilities.find(x => x.id === ed.dataset.editor);
@@ -1082,6 +1108,7 @@ main.addEventListener("change", e => {
   }
   const cls = curClass(); if (!cls) return;
   if (t.id === "newAbZone") { ui.addZone = t.value; return; }
+  if (t.id === "classPick") { ui.cls = t.value; ui.sel = ui.editing = null; saveUI(); render(); return; }
   const ed = t.closest("[data-editor]");
   if (ed && t.dataset.f === "zone") { cls.abilities.find(x => x.id === ed.dataset.editor).zone = t.value || null; save(); refreshClass(); return; }
   if (ed && (t.dataset.f === "name" || t.dataset.f === "icon")) {
@@ -1093,7 +1120,7 @@ main.addEventListener("change", e => {
 });
 document.addEventListener("keydown", e => {
   if (ui.capture) return;
-  if (e.key === "Escape" && (ui.sel || ui.editing) && !document.querySelector("dialog[open]")) { ui.sel = null; ui.editing = null; ui.addCell = null; if (curClass()) refreshClass(); }
+  if (e.key === "Escape" && (ui.sel || ui.editing) && !document.querySelector("dialog[open]")) { ui.sel = null; ui.editing = null; ui.addCell = null; if (ui.tab === "abilities" && curClass()) refreshClass(); }
   if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.edit) { e.preventDefault(); e.target.click(); }
   if (e.key === "Enter" && e.target.dataset?.open) e.target.click();
 });
@@ -1101,7 +1128,7 @@ document.addEventListener("keydown", e => {
 /* drag & drop of abilities (desktop) */
 let dragId = null;
 main.addEventListener("dragstart", e => {
-  const el = e.target.closest("[data-ab]"); if (!el || !curClass()) return;
+  const el = e.target.closest("[data-ab]"); if (!el || ui.tab !== "abilities" || !curClass()) return;
   dragId = el.dataset.ab; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId);
   ui.sel = dragId; setTimeout(() => refreshClass(true), 0);
 });
@@ -1314,7 +1341,8 @@ $("#btnExport").onclick = () => {
   ui.exported = true; saveUI(); if (ui.guide !== "hidden") render();
   toast("Exported keybind-atlas.json");
 };
-$("#btnHelp").onclick = () => { ui.guide = ""; saveUI(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+$("#btnHelp").onclick = () => $("#dlgHelp").showModal();
+$("#helpClose").onclick = () => $("#dlgHelp").close();
 $("#btnImport").onclick = () => { $("#importErr").textContent = ""; $("#importText").value = ""; $("#importFile").value = ""; $("#dlgImport").showModal(); };
 $("#importCancel").onclick = () => $("#dlgImport").close();
 $("#importFile").onchange = async e => { const f = e.target.files[0]; if (f) $("#importText").value = await f.text(); };
