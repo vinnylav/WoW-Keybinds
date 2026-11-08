@@ -1653,7 +1653,7 @@ $("#editGo").onclick = () => {
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
-const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and GetSpellInfo(i)or GetActionText(s)if n then t=t..\";\"..s..n end end C_Timer.After(.1,function()e=ChatFrame1EditBox e:SetMaxLetters(0)e:SetMaxBytes(0)ChatFrame_OpenChat(t)e:HighlightText()end)"];
+const GAME_LINES = ["/run t=\"/k\"for s=1,180 do k,i=GetActionInfo(s)n=k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)t=n and t..\";\"..s..n or t end RunNextFrame(function()e=ChatFrame1EditBox e:SetMaxLetters(0)e:SetMaxBytes(0)ChatFrame_OpenChat(t)e:HighlightText()end)"];
 function openGameImport() {
   $("#gameLines").textContent = GAME_LINES.join("\n");
   $("#gameText").value = ""; $("#gameMsg").textContent = "";
