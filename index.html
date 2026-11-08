@@ -542,7 +542,7 @@ function normalize(s) {
   s.binds = s.binds || {};
   s.endcaps = s.endcaps !== false;
   s.cells = s.cells || {};
-  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", base: c.base || guessBase(c.name), abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null })) }));
+  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", base: c.base || guessBase(c.name), abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null, placeholder: a.placeholder || undefined })) }));
   return s;
 }
 function clampInt(v, lo, hi, d) { v = parseInt(v, 10); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
@@ -1701,7 +1701,7 @@ $("#editGo").onclick = () => {
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
-const GAME_LINES = ["/run t=\"\"for s=1,180 do k,i=GetActionInfo(s)t=t..\";\"..s..(k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)or\"\")end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)"];
+const GAME_LINES = ["/run t=\"\"for s=1,99 do k,i=GetActionInfo(s)t=t..\";\"..(k==\"spell\"and C_Spell.GetSpellName(i)or GetActionText(s)or k or\"\")end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(99,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)"];
 function openGameImport() {
   $("#gameLines").textContent = GAME_LINES.join("\n");
   $("#gameText").value = ""; $("#gameMsg").textContent = "";
@@ -1720,6 +1720,7 @@ const slotToCell = s => {
   if (s >= 73 && s <= 84) return "1-" + (s - 72); // stance / form bar (Battle Stance, Cat Form, Stealth) shows on Bar 1
   return null;
 };
+const GAME_THINGS = { item: "Item", flyout: "Flyout", companion: "Pet", summonpet: "Pet", summonmount: "Mount", equipmentset: "Gear set" };
 // Trade skills people keep on their bars; not useful for planning class keys.
 const PROFESSION_SPELLS = new Set(["first aid", "cooking", "fishing", "blacksmithing", "smelting", "find minerals", "find herbs", "find fish", "mining", "herbalism", "skinning", "tailoring", "leatherworking", "engineering", "enchanting", "disenchant", "alchemy", "jewelcrafting", "inscription", "prospecting", "milling", "basic campfire", "pick lock", "survey", "archaeology"]);
 // Which Forever class has the most of these spells.
@@ -1730,13 +1731,19 @@ function guessClassFromSpells(names) {
 }
 function parseGame(text) {
   const out = { cls: "", slots: [], binds: {}, book: [] };
-  const one = text.trim().match(/^(?:\/k)?;?((?:\d+[^;]*;?)+)$/s); // ";1Holy Strike;2;3Judgement;..." (older lines started with /k)
-  if (one) {
-    one[1].split(";").forEach(part => {
-      const m = /^(\d+)(\D.*)$/.exec(part.trim()); if (!m) return;
-      const cell = slotToCell(+m[1]); if (!cell || out.slots.some(x => x.cell === cell)) return;
-      if (PROFESSION_SPELLS.has(m[2].trim().toLowerCase())) { out.skipped = (out.skipped || 0) + 1; return; }
-      out.slots.push({ cell, kind: "spell", spellId: null, name: m[2].trim() });
+  // One-line format: ";Holy Strike;;Judgement;item;..." where position = action slot (1, 2, 3...).
+  // Older lines numbered each entry: ";1Holy Strike;2;3Judgement" (and very old ones started with /k).
+  const t1 = text.trim().replace(/^\/k/, "");
+  if (t1.startsWith(";") && !/\n/.test(t1)) {
+    const parts = t1.slice(1).split(";"), numbered = parts.every(x => /^\d/.test(x));
+    parts.forEach((part, idx) => {
+      let slot = idx + 1, name = part.trim();
+      if (numbered) { const m = /^(\d+)(.*)$/.exec(name); slot = +m[1]; name = m[2].trim(); }
+      if (!name) return;
+      const cell = slotToCell(slot); if (!cell || out.slots.some(x => x.cell === cell)) return;
+      if (PROFESSION_SPELLS.has(name.toLowerCase())) { out.skipped = (out.skipped || 0) + 1; return; }
+      const thing = GAME_THINGS[name]; // items, flyouts, pets... come in as placeholders
+      out.slots.push({ cell, kind: thing ? "item" : "spell", spellId: null, name: thing || name });
     });
     out.cls = guessClassFromSpells(out.slots.map(x => x.name)) || "";
     return out;
@@ -1768,11 +1775,12 @@ $("#gameGo").onclick = () => {
   const find = (spellId, name) => cls.abilities.find(a => (spellId && a.spellId === spellId) || a.name.toLowerCase() === name.toLowerCase());
   let placed = 0, added = 0;
   // Bar contents mirror the game: clear this class's buttons first, so anything you moved or removed in game doesn't linger here.
-  if (g.slots.length) cls.abilities.forEach(a => a.cell = null);
+  if (g.slots.length) { cls.abilities = cls.abilities.filter(a => !a.placeholder); cls.abilities.forEach(a => a.cell = null); }
   // Bar contents: put each ability on the button it sits on in game.
   g.slots.forEach(s => {
-    let a = find(s.spellId, s.name);
-    if (!a) { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: s.spellId }; cls.abilities.push(a); added++; }
+    let a = s.kind === "item" ? null : find(s.spellId, s.name);
+    if (!a && s.kind === "item") { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: null, placeholder: true }; cls.abilities.push(a); }
+    else if (!a) { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: s.spellId }; cls.abilities.push(a); added++; }
     const other = cls.abilities.find(x => x.cell === s.cell && x !== a); if (other) other.cell = null;
     a.cell = s.cell; a.spellId = a.spellId || s.spellId;
     if (!a.zone && state.cells[s.cell]) a.zone = state.cells[s.cell];
