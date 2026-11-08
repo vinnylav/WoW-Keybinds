@@ -288,6 +288,24 @@ input[type=text], select, textarea {
 .shot-box b { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid #1a1408; cursor: grab; transform: translate(-50%, -50%); }
 .shot-box b[data-h=tl] { left: 0; top: 0; } .shot-box b[data-h=br] { left: 100%; top: 100%; }
 .linkish { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.consistency { display: grid; gap: 6px; margin-bottom: 14px; }
+.consistency h2 small { font: 400 13px var(--f-body); color: var(--muted); text-transform: none; letter-spacing: 0; margin-left: 8px; }
+.consistency ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.consistency li { display: grid; grid-template-columns: 18px 14px minmax(90px, 140px) minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 14px; color: var(--muted); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.consistency li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+.consistency li.warn::before { content: "!"; color: var(--danger); }
+.consistency li.none::before { content: "·"; }
+.consistency li b { color: var(--fg); font-family: var(--f-mono); }
+.consistency .cz { color: var(--fg); font-weight: 600; }
+.consistency .miss { color: var(--danger); }
+@media (max-width: 600px) { .consistency li { grid-template-columns: 18px 14px minmax(0, 1fr); } .consistency li > span:last-child { grid-column: 2 / -1; } }
+.spell .sp-ic { width: 18px; height: 18px; border-radius: 3px; flex: none; background: var(--cell); }
+.wow-steps { margin: 6px 0 10px; padding-left: 20px; display: grid; gap: 10px; color: var(--muted); font-size: 14px; }
+.wow-steps b { color: var(--fg); }
+.wow-steps pre { margin: 6px 0; }
+.wow-found { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.wow-found li::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+.wow-found li.bad::before { content: "✕ "; color: var(--danger); }
 .share-qr { display: grid; justify-items: center; gap: 4px; margin: 4px 0 10px; }
 .share-qr svg { width: min(260px, 70vw); height: auto; background: #fff; border-radius: 6px; }
 .found-sw { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -345,6 +363,8 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
   <div class="hdr-actions">
     <span class="status" id="status"></span><span class="status" id="ver" style="opacity:.55"></span>
+    <button id="btnUndo" class="small ghost" title="Undo (Ctrl+Z)" disabled>Undo</button>
+    <button id="btnRedo" class="small ghost" title="Redo (Ctrl+Shift+Z)" hidden>Redo</button>
     <button id="btnHelp" class="small ghost">How it works</button>
     <button id="btnReset" class="small ghost danger">Start over</button>
     <button id="btnShare" class="small" title="Open this plan on another device">Share link</button>
@@ -375,44 +395,36 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <div id="shotFound" class="row" style="flex-wrap:wrap"></div>
   <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="ghost" id="shotCancel">Cancel</button><button class="primary" id="shotApply" disabled>Repaint my categories</button></div>
 </dialog>
-<dialog id="dlgEdit">
+<dialog id="dlgWow">
   <h2>Import from WoW</h2>
-  <p class="hint">Fill in either part or both. Anything you leave empty stays as it is.</p>
-  <h3 class="dlg-step">1. Your bars <span>from Edit Mode</span></h3>
-  <p class="hint">In WoW press Esc, open Edit Mode, pick your layout, click the gear next to it and choose Share / Copy to Clipboard. Paste it here.</p>
-  <textarea id="editText" rows="4" placeholder="5 0 59 0 0 0 2 0 MultiBarBottomLeft -4.0 0.0 -1 ##$'%/&amp;('%)$+$,# 0 1 0 4 4 UIParent …"></textarea>
-  <div class="row" style="margin-top:6px">
-    <label class="inline" for="editScreen">Your screen</label>
-    <select id="editScreen">
+  <p class="hint">No addon needed. Log into the character you want to plan. Each step is optional: do the ones you need, then paste all the results into the box at the bottom.</p>
+  <ol class="wow-steps">
+    <li><b>What's on your bars.</b> Paste this line into the WoW chat box and press Enter. A box opens with the result already selected: press Ctrl+C, then Esc.
+      <pre class="macro" id="wowLineA"></pre><button class="small" data-copyline="wowLineA">Copy line 1</button></li>
+    <li><b>Your keybinds.</b> Same again with this line.
+      <pre class="macro" id="wowLineB"></pre><button class="small" data-copyline="wowLineB">Copy line 2</button></li>
+    <li><b>Your bar layout</b> <span class="hint">(only if you moved or reshaped your bars)</span>. Press Esc, open Edit Mode, click the gear next to your layout and choose Share, then Copy to Clipboard.</li>
+  </ol>
+  <label class="lbl-sm" for="wowAll">Paste the results here, one after another</label>
+  <textarea id="wowAll" rows="5" placeholder=";Seal of Righteousness;Judgement;… then  ACTIONBUTTON1@1 … then the Edit Mode text"></textarea>
+  <ul class="wow-found" id="wowFound"></ul>
+  <div class="row" id="wowScreenRow" hidden>
+    <label class="inline" for="wowScreen">Your screen</label>
+    <select id="wowScreen">
       <option value="1920x1080">1920 × 1080</option>
       <option value="2560x1440" selected>2560 × 1440</option>
       <option value="3440x1440">3440 × 1440</option>
       <option value="3840x2160">3840 × 2160</option>
     </select>
   </div>
-  <p class="hint" id="editMsg"></p>
-  <h3 class="dlg-step">2. Your keybinds <span>from bindings-cache.wtf</span></h3>
-  <p class="hint">Log out of WoW so it saves the latest file, then pick it. It's in <code>World of Warcraft\_retail_\WTF\Account\&lt;ACCOUNT&gt;\</code>, or one level deeper under <code>&lt;Realm&gt;\&lt;Character&gt;\</code> if you use character-specific keybinds.</p>
-  <div class="row" style="margin:6px 0"><input type="file" id="wowFile" accept=".wtf,text/plain"></div>
-  <textarea id="wowText" rows="3" placeholder="…or paste the file's contents: bind 1 ACTIONBUTTON1"></textarea>
-  <p class="hint" id="wowMsg"></p>
-  <div class="row" style="justify-content:flex-end; margin-top:8px">
-    <button id="editCancel" class="ghost">Cancel</button>
-    <button id="editGo" class="primary">Import</button>
+  <div class="row" id="wowTargetRow" hidden>
+    <label class="inline" for="wowTarget">Put the abilities in</label>
+    <select id="wowTarget"></select>
   </div>
-</dialog>
-
-<dialog id="dlgBinds">
-  <h2>Import keybinds from WoW</h2>
-  <p class="hint">No addon needed. In game, paste this line into the chat box and press Enter.</p>
-  <pre class="macro" id="bindsLine"></pre>
-  <div class="row" style="margin:6px 0"><button class="small" id="bindsCopy">Copy line</button></div>
-  <p class="hint">A text box appears at the top of your screen. Click it (that selects everything), press Ctrl+C, and click anywhere else: the box closes by itself. Paste it here. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
-  <textarea id="bindsText" rows="4" placeholder=" ACTIONBUTTON1@1 ACTIONBUTTON2@2 MULTIACTIONBAR1BUTTON5@SHIFT-Q …"></textarea>
-  <p class="hint" id="bindsMsg"></p>
+  <p class="hint">If nothing happens in game, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error. The first time, WoW may ask you to allow scripts: say yes and paste it again.</p>
   <div class="row" style="justify-content:flex-end; margin-top:8px">
-    <button id="bindsCancel" class="ghost">Cancel</button>
-    <button id="bindsGo" class="primary">Use these keys</button>
+    <button id="wowCancel" class="ghost">Cancel</button>
+    <button id="wowGo" class="primary" disabled>Import</button>
   </div>
 </dialog>
 <dialog id="dlgMacro">
@@ -438,30 +450,11 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
-<dialog id="dlgGame">
-  <h2>Import abilities from the game</h2>
-  <p class="hint">No addon needed. Log into the character, paste this one line into the chat box and press Enter. The first time, WoW may ask you to allow scripts; say yes and paste it again.</p>
-  <pre class="macro" id="gameLines"></pre>
-  <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy line</button></div>
-  <p class="hint">A box opens in the middle of your screen with everything already selected. Press Ctrl+C, then Esc to close it, and paste it here. Macros come in as "Macro" placeholders, since their names don't fit in one line. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
-  <textarea id="gameText" rows="6" placeholder=";1Heroic Strike;2Charge;3Rend;4;5…"></textarea>
-  <div class="row" style="margin-top:6px">
-    <label class="inline" for="gameTarget">Put them in</label>
-    <select id="gameTarget"></select>
-  </div>
-  <label class="inline" style="margin-top:6px"><input type="checkbox" id="gameBinds" checked> Also use the keybinds from the game</label>
-  <p class="hint" id="gameMsg"></p>
-  <div class="row" style="justify-content:flex-end; margin-top:8px">
-    <button id="gameCancel" class="ghost">Cancel</button>
-    <button id="gameGo" class="primary">Import</button>
-  </div>
-</dialog>
-
 <dialog id="dlgHelp">
   <h2>How it works</h2>
   <ol class="help-steps">
-    <li><b>Bars &amp; keys.</b> Import your Edit Mode layout and keybinds from WoW, or use the default Blizzard UI. Click a button and press a key to change it.</li>
-    <li><b>Categories.</b> Paint areas of your bars (Builders, Interrupt, Defense…). The same categories apply to every class.</li>
+    <li><b>Bars &amp; keys.</b> Import from WoW (what's on your bars, your keybinds and, if you changed it, your Edit Mode layout), or use the default Blizzard UI. Click a button and press a key to change it.</li>
+    <li><b>Categories.</b> Paint areas of your bars (Builders, Spenders, Interrupts…). The same categories apply to every class.</li>
     <li><b>Abilities.</b> Pick a class, add its abilities and choose each one's category. They land in the same spot on every class, so your muscle memory carries over.</li>
   </ol>
   <p class="hint"><b>Compare</b> shows all classes side by side. <b>Export JSON</b> backs everything up. Your work saves in this browser only.</p>
@@ -478,6 +471,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
 </dialog>
 
 <script src="data/forever-spells.js"></script>
+<script src="data/forever-icons.js"></script>
 <script src="assets/qrcode.js"></script>
 <script>
 "use strict";
@@ -540,7 +534,7 @@ const PRESETS = {
     binds: () => ({}),
   },
 };
-const STARTER_ZONES = [["Builders", "#2bb3a3"], ["Spenders", "#d08a2c"], ["Offense", "#c43d8f"], ["Defense", "#3a6fd1"], ["Interrupt", "#9b59d6"]];
+const STARTER_ZONES = [["Builders", "#2bb3a3"], ["Spenders", "#d08a2c"], ["Interrupts", "#9b59d6"]];
 const starterZones = () => STARTER_ZONES.map(([name, color]) => ({ id: uid(), name, color }));
 function blankState() {
   return { v: 2, bars: PRESETS.default.bars(), binds: PRESETS.default.binds(), zones: starterZones(), cells: {}, classes: [] };
@@ -555,7 +549,32 @@ function loadLocal() {
   return null;
 }
 let saveTimer = null;
-function save() {
+// Undo: every save remembers the plan as it was before. Typing into one field counts as one step;
+// icons arriving in the background aren't a step.
+const undoStack = [], redoStack = []; let committed = null, lastChange = 0, lastKey = null, typingKey = null;
+function track(undoable) {
+  const now = JSON.stringify(state);
+  if (committed !== null && now !== committed && undoable) {
+    const sameTyping = typingKey && typingKey === lastKey && Date.now() - lastChange < 2000;
+    if (!sameTyping || !undoStack.length) { undoStack.push(committed); if (undoStack.length > 60) undoStack.shift(); }
+    redoStack.length = 0; lastChange = Date.now(); lastKey = typingKey;
+  }
+  committed = now; undoButtons();
+}
+function undoButtons() { const u = $("#btnUndo"), r = $("#btnRedo"); if (u) u.disabled = !undoStack.length; if (r) r.hidden = !redoStack.length; }
+function stepHistory(from, to, label) {
+  if (!from.length) { toast(label === "Undone" ? "Nothing to undo." : "Nothing to redo."); return; }
+  clearTimeout(saveTimer); saveTimer = null;
+  to.push(committed); committed = from.pop(); lastChange = 0;
+  state = normalize(JSON.parse(committed));
+  try { localStorage.setItem(STORE_KEY, committed); setStatus("Saved in this browser"); } catch (e) {}
+  ui.sel = ui.editing = null; if (!curClass()) ui.cls = state.classes[0]?.id || null;
+  undoButtons(); render(); toast(label + ".");
+}
+const undo = () => stepHistory(undoStack, redoStack, "Undone");
+const redo = () => stepHistory(redoStack, undoStack, "Redone");
+function save(undoable = true) {
+  track(undoable);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
@@ -564,9 +583,9 @@ function save() {
   }, 250);
 }
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
-function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone, tour: ui.tour })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 17";
+const BUILD = "Nov 8 · 18";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -676,6 +695,10 @@ function iconSrc(icon) {
   if (/^(https?:|data:)/.test(icon)) return icon;
   return "https://wow.zamimg.com/images/wow/icons/large/" + encodeURIComponent(icon.toLowerCase().replace(/\.jpg$/, "").trim()) + ".jpg";
 }
+// An ability's icon: its own, else the bundled Forever icon for that spell name.
+const ICON_LC = Object.fromEntries(Object.entries(window.FOREVER_ICONS || {}).map(([k, v]) => [k.toLowerCase(), v]));
+const nameIcon = n => { const k = String(n || "").toLowerCase(); return ICON_LC[k] || ICON_LC[k.replace(/\s*\(.*\)$/, "")] || ""; };
+const abIcon = a => a.icon || (a.placeholder ? "" : nameIcon(a.name));
 const mismatched = a => a.cell && a.zone && state.cells[a.cell] !== a.zone;
 function toast(t) {
   document.querySelectorAll(".toast").forEach(t => t.remove());
@@ -691,12 +714,13 @@ function confirmBox(title, text, yesLabel = "Confirm") {
   });
 }
 function tileHTML(a) {
-  const src = iconSrc(a.icon);
+  const src = iconSrc(abIcon(a));
   if (!src) return `<div class="ab-text"><b>${esc(initials(a.name))}</b><small>${esc(a.name)}</small></div>`;
   return `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">`;
 }
 document.addEventListener("error", e => {
   const img = e.target;
+  if (img.tagName === "IMG" && img.classList.contains("sp-ic")) { img.style.visibility = "hidden"; return; }
   if (img.tagName === "IMG" && img.dataset.fallback) {
     const name = img.closest("[data-name]")?.dataset.name || "";
     const inThumb = !!img.closest(".thumb");
@@ -832,7 +856,7 @@ function newClassFormHTML(id, first) {
     <div class="row"><select id="${id}Kit" aria-label="Class" style="flex:1"><option value="">Pick a class…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}<option value="-">Other (just a name)</option></select></div>
     <div class="row"><input type="text" id="${id}Name" placeholder="Name or spec, e.g. Ret Paladin" aria-label="Class or spec name"><button class="primary" type="submit">Add</button></div>
     <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching categories. You also get the class's full WoW Forever spellbook to pick from.</p>
-    ${first ? `<p class="hint">Or <button type="button" class="small" data-act="game-import">Import from game</button> to read your spellbook and bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
+    ${first ? `<p class="hint">Or <button type="button" class="small" data-act="wow-import">Import from WoW</button> to bring in what's on your bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
   </form>`;
 }
 const guessBase = name => Object.keys(CLASS_KITS).find(k => new RegExp("\\b" + k + "\\b", "i").test(name || "")) || null;
@@ -852,7 +876,8 @@ function spellbookHTML(cls) {
     h += `<div class="book-tree">${esc(tree)}</div>`;
     list.forEach(([n, lvl, tag]) => {
       const got = have.has(n.toLowerCase());
-      h += `<button class="spell ${got ? "got" : ""}" data-addspell="${esc(n)}" ${got ? 'disabled title="Already added"' : ""}><span>${esc(n)}</span>${tag === "new" ? `<em class="tag new">New</em>` : tag === "changed" ? `<em class="tag">Changed</em>` : tag === "talent" ? `<em class="tag tal">Talent</em>` : ""}<small>${lvl ? "L" + lvl : ""}</small></button>`;
+      const ic = nameIcon(n);
+      h += `<button class="spell ${got ? "got" : ""}" data-addspell="${esc(n)}" ${got ? 'disabled title="Already added"' : ""}>${ic ? `<img class="sp-ic" src="${esc(iconSrc(ic))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<i class="sp-ic"></i>`}<span>${esc(n)}</span>${tag === "new" ? `<em class="tag new">New</em>` : tag === "changed" ? `<em class="tag">Changed</em>` : tag === "talent" ? `<em class="tag tal">Talent</em>` : ""}<small>${lvl ? "L" + lvl : ""}</small></button>`;
     });
   });
   if (!Object.keys(trees).length) h += `<p class="hint">No spells match.</p>`;
@@ -921,13 +946,31 @@ function render() {
   else renderNoClass();
 }
 // Only shown until the bars are set up: the one decision a new visitor has to make.
+// The guided first run: 1 bars, 2 categories (pre-painted), 3 first class. ui.tour walks "paint" -> "class" -> "done".
 function guideHTML() {
-  if (ui.barsDone || ui.tab !== "bars") return "";
-  return `<div class="guide welcome" role="region" aria-label="Welcome">
-    <h2>Welcome! Plan your WoW Forever keybinds</h2>
-    <p class="hint">Keep the same job on the same key for every character: interrupt always on R, defensive always on Shift+E, whatever your class. Start with your action bars: bring in what you use in Forever, or start from the default Blizzard UI. Everything saves in this browser only.</p>
-    <div class="row"><button class="primary" data-act="edit-import">Import Layout from WoW</button><button data-act="keep-default">Use Default Blizzard UI Layout</button></div>
-  </div>`;
+  const card = (step, title, body, buttons) => `<div class="guide welcome" role="region" aria-label="Getting started">
+    <span class="lbl-sm">Step ${step} of 3</span><h2>${title}</h2><p class="hint">${body}</p><div class="row">${buttons}</div></div>`;
+  const skip = `<button class="ghost small" data-act="tour-done">Skip the tour</button>`;
+  if (!ui.barsDone && ui.tab === "bars") return card(1, "Welcome! Plan your WoW Forever keybinds",
+    "Keep the same job on the same key for every character: interrupt always on R, whatever your class. Start with your action bars: bring in what you use in Forever, or start from the default Blizzard UI. Everything saves in this browser only.",
+    `<button class="primary" data-act="wow-import">Import from WoW</button><button data-act="keep-default">Use Default Blizzard UI Layout</button>`);
+  if (ui.tour === "paint" && ui.tab === "zones") return card(2, "Your categories",
+    "Categories are the jobs that stay on the same buttons for every class. We painted three to start: Builders, Spenders and Interrupts. Paint over them to match how you play: pick one in the Categories panel, then click or drag across buttons. Rename them or add more any time.",
+    `<button class="primary" data-act="tour-class">Next: add a class →</button>${skip}`);
+  if (ui.tour === "class" && (ui.tab === "abilities" || ui.tab === "zones")) return curClass()
+    ? card(3, "You're set up", `${esc(curClass().name)}'s abilities land in their categories. Add your other classes the same way, then open Compare to check every class uses the same keys.`, `<button class="primary" data-act="tour-done">Got it</button>`)
+    : card(3, "Add your first class", "Pick a class in the panel and its interrupt and other key abilities drop into your categories. Or import what's on your bars in game.", `<button data-act="wow-import">Import from WoW</button>${skip}`);
+  return "";
+}
+// First run only: paint Builders, Spenders and Interrupts onto Bar 1 so the idea shows straight away.
+function seedStarterPaint() {
+  if (Object.keys(state.cells).length) return;
+  const byName = n => state.zones.find(z => z.name.toLowerCase() === n);
+  const zs = ["builders", "spenders", "interrupts"].map(byName);
+  if (zs.some(z => !z)) return;
+  const bar = state.bars.find(b => b.n === 1 && b.show) || state.bars.find(b => b.show); if (!bar) return;
+  const plan = [[zs[0], 1, 4], [zs[1], 5, 8], [zs[2], 9, 9]];
+  plan.forEach(([z, a, b]) => { for (let i = a; i <= Math.min(b, bar.icons); i++) state.cells[bar.n + "-" + i] = z.id; });
 }
 function planBarHTML(title) {
   const z = ui.tab === "zones";
@@ -946,6 +989,7 @@ function nextHTML(tab, label) { return `<div class="row next-row"><button class=
 function renderNoClass() {
   $("#main").innerHTML = `
   <section class="main-col">
+    ${guideHTML()}
     ${planBarHTML("Abilities")}
     <p class="hint">Add your first class on the right. Its key abilities drop straight into your categories.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
@@ -975,7 +1019,7 @@ function barsSideHTML() {
   return `
   ${ui.barsDone ? `<div style="display:grid;gap:8px">
     <h2>Change layout</h2>
-    <div class="row"><button class="small" data-act="edit-import">Import Layout from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI</button></div>
+    <div class="row"><button class="small" data-act="wow-import">Import from WoW</button><button class="small" data-act="keep-default">Use Default Blizzard UI</button></div>
   </div>` : ""}
   <div style="display:grid;gap:8px">
     <h2>Keybinds</h2>
@@ -983,7 +1027,7 @@ function barsSideHTML() {
       <span class="hint">${nb} button${nb === 1 ? " has" : "s have"} a key.</span>
     </div>
     <div class="row">
-      <button class="small" data-act="binds-import" title="Read the keys your action bars use in game">Import from WoW</button>
+      <button class="small" data-act="wow-import" title="Read your bars, keys and layout from the game">Import from WoW</button>
       <button class="small" data-act="wow-export" ${nb ? "" : "disabled"} title="Get chat lines that apply these keys in game">Send to WoW</button>
     </div>
   </div>
@@ -1026,14 +1070,14 @@ function renderZones() {
   <section class="main-col">
     ${guideHTML()}
     ${planBarHTML(curClass() ? esc(curClass().name) : "Categories")}
-    <p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category in the Categories panel, then tap, click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
+    ${ui.tour === "paint" ? "" : `<p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category in the Categories panel, then tap, click or drag across buttons to paint it. Drag over painted buttons to erase.</p>`}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
     ${Object.keys(state.cells).length ? `<div class="row next-row"><button class="primary" data-plan="abilities">Done painting: place abilities →</button></div>` : ""}
   </section>
   <aside class="side" id="side">
     <div style="display:grid;gap:8px">
       <h2>Categories</h2>
-      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No categories yet. Add one, or start with the usual five.</p><div class="row"><button class="small" data-act="starter-zones">Add Builders, Spenders, Offense, Defense, Interrupt</button></div>`}</div>
+      <div class="zone-list" id="zoneList">${zoneListHTML() || `<p class="hint">No categories yet. Add one, or start with the usual three.</p><div class="row"><button class="small" data-act="starter-zones">Add Builders, Spenders, Interrupts</button></div>`}</div>
       <div class="row">
         <button data-act="add-zone">+ Add category</button>
         <button data-act="zones-shot">From a picture</button>
@@ -1089,7 +1133,7 @@ function classSideHTML(cls) {
   </div>
   <form id="addAb" style="display:grid;gap:6px">
     <h2>Add ability</h2>
-    <div class="row"><button class="small" type="button" data-act="game-import">Import from game</button><span class="hint">Pulls your spellbook and bars</span></div>
+    <div class="row"><button class="small" type="button" data-act="wow-import">Import from WoW</button><span class="hint">Brings in what's on your bars</span></div>
     <div class="row"><input type="text" id="newAbName" placeholder="${ui.addCell ? "Ability for " + esc(slotLabel(ui.addCell)) : "Ability name"}" aria-label="Ability name" required></div>
     <div class="row"><select id="newAbZone" aria-label="Category" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
@@ -1106,7 +1150,7 @@ function classSideHTML(cls) {
     const cap = z.id ? zoneCells(z.id).length : 0;
     h += `<div class="zgroup" data-dropzone="${z.id}"><div class="zgroup-h"><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}${z.id ? `<span class="cap ${list.length > cap ? "full" : ""}" title="Abilities / buttons">${list.length}/${cap}</span>` : ""}</div>`;
     list.forEach(a => {
-      const src = iconSrc(a.icon);
+      const src = iconSrc(abIcon(a));
       h += `<button class="ab ${ui.sel === a.id ? "sel" : ""}" data-ab="${a.id}" data-name="${esc(a.name)}" draggable="true">
         <span class="thumb" style="background:${esc(z.color)}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name))}</span>
         <span class="nm">${esc(a.name)}${a.role ? ` <small class="role">${esc(a.role)}</small>` : ""}</span>
@@ -1162,12 +1206,43 @@ function renderOverview() {
   });
   table += `</tbody></table>`;
   $("#main").innerHTML = `<section class="main-col" style="grid-column:1/-1">
+    ${consistencyHTML()}
     ${guideHTML()}
     <h2>All classes</h2>
     <p class="hint">Same bars and categories, every class. Use this to check that your interrupt, stuns and defensives land on the same keys everywhere.</p>
     <div class="ov">${cards || `<p class="hint">No classes yet. Add one on the Plan tab.</p>`}</div>
     ${state.zones.length && state.classes.length ? `<h2 style="margin-top:12px">By category</h2><div class="zmatrix">${table}</div>` : ""}
   </section>`;
+}
+
+// Consistency: for each category, which key each class uses for the first ability in it.
+// One key everywhere = consistent. Several keys, or a class with nothing there, gets flagged.
+function consistencyHTML() {
+  if (state.classes.length < 2 || !state.zones.length) return "";
+  const rows = state.zones.map(z => {
+    const order = zoneCells(z.id);
+    const byKey = new Map(), missing = [];
+    state.classes.forEach(c => {
+      const first = c.abilities.filter(a => a.zone === z.id && a.cell && order.includes(a.cell)).sort((a, b) => order.indexOf(a.cell) - order.indexOf(b.cell))[0];
+      if (!first) { missing.push(c.name); return; }
+      const k = slotLabel(first.cell); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(`${c.name} (${first.name})`);
+    });
+    const groups = [...byKey.entries()].sort((a, b) => b[1].length - a[1].length);
+    const ok = groups.length === 1 && !missing.length;
+    const none = !groups.length;
+    let msg;
+    if (none) msg = `No class has anything here yet.`;
+    else if (ok) msg = `<b>${esc(groups[0][0])}</b> on every class.`;
+    else msg = groups.map(([k, list]) => `<b>${esc(k)}</b>: ${list.map(esc).join(", ")}`).join(" · ") + (missing.length ? ` · <span class="miss">Nothing on ${missing.map(esc).join(", ")}</span>` : "");
+    return { z, ok, none, msg };
+  });
+  const good = rows.filter(r => r.ok).length;
+  const off = state.classes.reduce((n, c) => n + c.abilities.filter(mismatched).length, 0);
+  return `<div class="consistency">
+    <h2>Consistency <small>${good} of ${rows.length} categories use the same key on every class</small></h2>
+    <ul>${rows.map(r => `<li class="${r.ok ? "ok" : r.none ? "none" : "warn"}"><i class="sw" style="background:${esc(r.z.color)}"></i><span class="cz">${esc(r.z.name)}</span><span>${r.msg}</span></li>`).join("")}</ul>
+    ${off ? `<p class="hint" style="color:var(--danger)">${off} abilit${off === 1 ? "y sits" : "ies sit"} outside ${off === 1 ? "its" : "their"} category. Open the class to move ${off === 1 ? "it" : "them"}.</p>` : ""}
+  </div>`;
 }
 
 /* ---------------- pointer: zone painting + bar dragging ---------------- */
@@ -1255,9 +1330,10 @@ main.addEventListener("click", async e => {
   const planBtn = t.closest("[data-plan]");
   if (planBtn) { go(planBtn.dataset.plan); return; }
   const sp = t.closest("[data-addspell]"); if (sp && curClass()) { addSpell(curClass(), sp.dataset.addspell); return; }
-  if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Categories and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
-  if (act === "edit-import") { openWowImport(); return; }
-  if (act === "game-import") { openGameImport(); return; }
+  if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Categories and abilities stay on the same bar buttons.", "Use default layout")) return; if (!ui.barsDone) ui.tour = "paint"; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); seedStarterPaint(); ui.barsDone = true; saveUI(); save(); go("zones"); toast("Using the default Blizzard UI layout."); return; }
+  if (act === "tour-class") { ui.tour = "class"; go("abilities"); return; }
+  if (act === "tour-done") { ui.tour = "done"; saveUI(); render(); return; }
+  if (act === "wow-import") { openWowDialog(); return; }
   const goBtn = t.closest("[data-goto]");
   if (goBtn) { go(goBtn.dataset.goto); return; }
 
@@ -1265,7 +1341,6 @@ main.addEventListener("click", async e => {
     if (act === "cap-cancel") { ui.capture = null; renderBars(); return; }
     if (act === "cap-clear") { setBind(ui.capture, null); return; }
     if (act === "wow-export") { openWowExport(); return; }
-    if (act === "binds-import") { openBindsImport(); return; }
     if (act === "binds-clear") {
       if (!await confirmBox("Clear all keybinds?", "Every button loses its key in this planner. Your categories and abilities stay where they are.", "Clear keybinds")) return;
       state.binds = {}; save(); renderBars(); return;
@@ -1370,6 +1445,10 @@ main.addEventListener("submit", e => {
   setTimeout(() => $("#newAbName")?.focus(), 0);
 });
 main.addEventListener("input", e => {
+  typingKey = e.target.id || e.target.dataset.zname || e.target.dataset.zcolor || e.target.dataset.f || "x";
+  try { onInput(e); } finally { typingKey = null; }
+});
+function onInput(e) {
   const t = e.target;
   if (ui.tab === "zones") {
     if (t.dataset.zname) { zoneById(t.dataset.zname).name = t.value; save(); refreshZoneGrid(); }
@@ -1386,7 +1465,7 @@ main.addEventListener("input", e => {
     if (t.dataset.f === "name") { a.name = t.value; save(); refreshClass(true); }
     if (t.dataset.f === "icon" && t.value !== "(uploaded image)") { a.icon = t.value.trim(); save(); refreshClass(true); }
   }
-});
+}
 main.addEventListener("toggle", e => { if (e.target.id === "manual") ui.manualOpen = e.target.open; }, true);
 main.addEventListener("change", e => {
   const t = e.target;
@@ -1413,7 +1492,7 @@ main.addEventListener("change", e => {
   if (ed && t.dataset.f === "zone") { cls.abilities.find(x => x.id === ed.dataset.editor).zone = t.value || null; save(); refreshClass(); return; }
   if (ed && (t.dataset.f === "name" || t.dataset.f === "icon")) {
     const a = cls.abilities.find(x => x.id === ed.dataset.editor); const item = main.querySelector(`.ab[data-ab="${a.id}"]`);
-    if (item) { item.dataset.name = a.name; item.querySelector(".nm").textContent = a.name; const src = iconSrc(a.icon); item.querySelector(".thumb").innerHTML = src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name)); }
+    if (item) { item.dataset.name = a.name; item.querySelector(".nm").textContent = a.name; const src = iconSrc(abIcon(a)); item.querySelector(".thumb").innerHTML = src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name)); }
     return;
   }
   if (t.dataset.file) { const f = t.files[0]; if (f) setIconFromFile(cls, t.dataset.file, f); }
@@ -1590,25 +1669,11 @@ function parseWtf(text) {
   });
   return { binds, total };
 }
-function openWowImport() {
-  ["#wowText", "#wowFile", "#editText"].forEach(id => $(id).value = "");
-  $("#wowMsg").textContent = ""; $("#editMsg").textContent = ""; $("#dlgEdit").showModal();
-}
-$("#wowFile").onchange = async e => { const f = e.target.files[0]; if (f) { $("#wowText").value = await f.text(); previewWow(); } };
-$("#wowText").oninput = () => previewWow();
-function previewWow() {
-  const txt = $("#wowText").value.trim(); const m = $("#wowMsg");
-  if (!txt) { m.textContent = ""; return; }
-  const { binds, total } = parseWtf(txt);
-  const bars = [...new Set(Object.keys(binds).map(k => +k.split("-")[0]))].sort((a, b) => a - b);
-  m.style.color = total ? "var(--ok)" : "var(--danger)";
-  m.textContent = total ? `Found ${total} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds in that. Pick your bindings-cache.wtf file.";
-}
 // Export as /run lines that each fit WoW's 255-character chat limit.
 // Keys are packed as "s-Q@15" (Shift-Q on bar 2 button 5; bar digit is bar - 1) into K over as few lines as possible,
 // then one last line applies and saves them.
 const WOW_APPLY = "/run for k,b,n in K:gsub(\"(%l)%-\",{a=\"ALT-\",c=\"CTRL-\",s=\"SHIFT-\"}):gmatch\"(%S+)@(%d)(%d+)\"do c=(b>\"0\"and\"MULTIACTIONBAR\"..b..\"BUTTON\"or\"ACTIONBUTTON\")..n o=GetBindingKey(c)if o then SetBinding(o)end SetBinding(k,c)end SaveBindings(GetCurrentBindingSet())";
-const WOW_BINDS_LINE = "/run t=\"\"for i=1,GetNumBindings()do c,_,k=GetBinding(i)t=k and c:find\"TIONB\"and t..\" \"..c..\"@\"..k or t end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(500,30)e:SetPoint\"TOP\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)";
+const WOW_BINDS_LINE = "/run t=\"\"for i=1,GetNumBindings()do c,_,k=GetBinding(i)t=k and c:find\"TIONB\"and t..\" \"..c..\"@\"..k or t end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(400,30)e:SetPoint\"CENTER\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)e:SetFocus()";
 function wowLines() {
   const toks = Object.entries(state.binds).map(([slot, key]) => key.replace(/ALT-/g, "a-").replace(/CTRL-/g, "c-").replace(/SHIFT-/g, "s-").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + "@" + (slot.split("-")[0] - 1) + slot.split("-")[1]);
   const lines = []; let cur = "";
@@ -1629,26 +1694,6 @@ function parseBindsLine(text) {
   }
   return binds;
 }
-function openBindsImport() { $("#bindsLine").textContent = WOW_BINDS_LINE; $("#bindsText").value = ""; $("#bindsMsg").textContent = ""; $("#dlgBinds").showModal(); }
-$("#bindsCancel").onclick = () => $("#dlgBinds").close();
-$("#bindsCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText(WOW_BINDS_LINE); toast("Copied. Paste it into WoW chat and press Enter."); }
-  catch (e) { const r = document.createRange(); r.selectNodeContents($("#bindsLine")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
-};
-$("#bindsText").oninput = () => {
-  const t = $("#bindsText").value.trim(), m = $("#bindsMsg"); if (!t) { m.textContent = ""; return; }
-  const b = parseBindsLine(t), n = Object.keys(b).length, bars = [...new Set(Object.keys(b).map(k => +k.split("-")[0]))].sort((x, y) => x - y);
-  m.style.color = n ? "var(--ok)" : "var(--danger)";
-  m.textContent = n ? `Found ${n} action bar keybinds on bar${bars.length > 1 ? "s" : ""} ${bars.join(", ")}.` : "No action bar keybinds in that. It should look like ACTIONBUTTON1@1 …";
-};
-$("#bindsGo").onclick = () => {
-  const b = parseBindsLine($("#bindsText").value); const n = Object.keys(b).length;
-  if (!n) { $("#bindsText").oninput(); return; }
-  state.binds = b;
-  Object.keys(b).forEach(k => { const bar = state.bars.find(x => x.n === +k.split("-")[0]); if (bar) bar.show = true; });
-  ui.barsDone = true; saveUI(); save(); $("#dlgBinds").close(); render();
-  toast(`${n} keybinds imported from WoW.`);
-};
 function openWowExport() { $("#macroText").textContent = wowLines().join("\n"); $("#dlgMacro").showModal(); }
 $("#macroClose").onclick = () => $("#dlgMacro").close();
 $("#macroCopy").onclick = async () => {
@@ -1726,53 +1771,10 @@ function editModeToBars(eb, W, H) {
   out.forEach(b => { b.x -= mx; b.y -= my; });
   return out;
 }
-$("#editCancel").onclick = () => $("#dlgEdit").close();
-$("#editText").oninput = () => {
-  const m = $("#editMsg"); const txt = $("#editText").value.trim();
-  if (!txt) { m.textContent = ""; return; }
-  try {
-    const eb = parseEditMode(txt);
-    const shown = eb.filter(b => !b.hidden && (b.n === 1 || !b.def)).map(b => b.n);
-    m.style.color = "var(--ok)";
-    m.textContent = `Found ${eb.length} action bars. Bars ${shown.join(", ")} will be shown. Bars still in their default spot start hidden; tick them on under "Set up by hand" if you use them.`;
-  } catch (err) { m.style.color = "var(--danger)"; m.textContent = err.message; }
-};
-$("#editGo").onclick = () => {
-  const layoutTxt = $("#editText").value.trim(), bindTxt = $("#wowText").value.trim();
-  if (!layoutTxt && !bindTxt) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = "Paste an Edit Mode layout, pick a keybinds file, or both."; return; }
-  let bars = null, binds = null;
-  if (layoutTxt) {
-    try { const [W, H] = $("#editScreen").value.split("x").map(Number); const eb = parseEditMode(layoutTxt); bars = editModeToBars(eb, W, H); const m = eb.find(b => b.n === 1); if (m) state.endcaps = m.art; }
-    catch (err) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = err.message; return; }
-  }
-  if (bindTxt) {
-    const r = parseWtf(bindTxt);
-    if (!r.total) { previewWow(); return; }
-    binds = r.binds;
-  }
-  if (bars) { bars.forEach(b => { b.up = !!state.bars.find(o => o.n === b.n)?.up; }); state.bars = bars; }
-  if (binds) {
-    state.binds = binds;
-    Object.keys(binds).forEach(k => { const b = state.bars.find(x => x.n === +k.split("-")[0]); if (b) b.show = true; });
-  }
-  ui.barsDone = true; saveUI(); save(); $("#dlgEdit").close(); render();
-  toast([bars && "Bars imported", binds && `${Object.keys(binds).length} keybinds imported`].filter(Boolean).join(" · ") + ".");
-};
 
 
 /* ---------------- import abilities from the game (chat /run lines, no addon) ---------------- */
 const GAME_LINES = ["/run t=\"\"for s=1,180 do k,i=GetActionInfo(s)t=t..\";\"..(k==\"spell\"and C_Spell.GetSpellName(i)or k or\"\")end e=CreateFrame(\"EditBox\",nil,nil,\"InputBoxTemplate\")e:SetSize(400,30)e:SetPoint\"CENTER\"e:SetText(t)e:SetScript(\"OnEditFocusLost\",e.Hide)e:SetFocus()"];
-function openGameImport() {
-  $("#gameLines").textContent = GAME_LINES.join("\n");
-  $("#gameText").value = ""; $("#gameMsg").textContent = "";
-  $("#gameTarget").innerHTML = `<option value="">A new class (named from the game)</option>` + state.classes.map(c => `<option value="${c.id}" ${c.id === ui.cls ? "selected" : ""}>${esc(c.name)}</option>`).join("");
-  $("#dlgGame").showModal();
-}
-$("#gameCancel").onclick = () => $("#dlgGame").close();
-$("#gameCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText(GAME_LINES.join("\n")); toast("Copied. Paste it into WoW chat and press Enter."); }
-  catch (e) { const r = document.createRange(); r.selectNodeContents($("#gameLines")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
-};
 // Action slot -> bar-button, for the one-line format (slot numbers straight from GetActionInfo).
 const SLOT_BASE = { 1: 1, 2: 61, 3: 49, 4: 25, 5: 37, 6: 145, 7: 157, 8: 169 };
 const slotToCell = s => {
@@ -1820,44 +1822,6 @@ function parseGame(text) {
   });
   return out;
 }
-$("#gameText").oninput = () => {
-  const g = parseGame($("#gameText").value), m = $("#gameMsg");
-  if (!$("#gameText").value.trim()) { m.textContent = ""; return; }
-  const n = g.slots.length + g.book.length;
-  m.style.color = n ? "var(--ok)" : "var(--danger)";
-  m.textContent = n ? `Found ${g.cls ? "a " + g.cls : "a character"}: ${g.slots.length} things on your bars${g.skipped ? ` (skipped ${g.skipped} profession spell${g.skipped > 1 ? "s" : ""})` : ""}${g.book.length ? `, ${g.book.length} spells in your spellbook` : ""}${Object.keys(g.binds).length ? `, ${Object.keys(g.binds).length} keybinds` : ""}.` : "That doesn't look like the text from the game. It should look like ;1Holy Strike;2;3Judgement…";
-};
-$("#gameGo").onclick = () => {
-  const g = parseGame($("#gameText").value);
-  if (!g.slots.length && !g.book.length) { $("#gameText").oninput(); return; }
-  let cls = state.classes.find(c => c.id === $("#gameTarget").value);
-  if (!cls) { cls = { id: uid(), name: g.cls || "Imported class", base: CLASS_KITS[g.cls] ? g.cls : null, color: CLASS_KITS[g.cls]?.color || "#c7c3b8", abilities: [] }; state.classes.push(cls); }
-  const find = (spellId, name) => cls.abilities.find(a => (spellId && a.spellId === spellId) || a.name.toLowerCase() === name.toLowerCase());
-  let placed = 0, added = 0;
-  // Bar contents mirror the game: clear this class's buttons first, so anything you moved or removed in game doesn't linger here.
-  if (g.slots.length) { cls.abilities = cls.abilities.filter(a => !a.placeholder); cls.abilities.forEach(a => a.cell = null); }
-  // Bar contents: put each ability on the button it sits on in game.
-  g.slots.forEach(s => {
-    let a = s.kind === "item" ? null : find(s.spellId, s.name);
-    if (!a && s.kind === "item") { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: null, placeholder: true }; cls.abilities.push(a); }
-    else if (!a) { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: s.spellId }; cls.abilities.push(a); added++; }
-    const other = cls.abilities.find(x => x.cell === s.cell && x !== a); if (other) other.cell = null;
-    a.cell = s.cell; a.spellId = a.spellId || s.spellId;
-    if (!a.zone && state.cells[s.cell]) a.zone = state.cells[s.cell];
-    placed++;
-  });
-  // Spellbook: anything not already listed comes in unplaced.
-  g.book.forEach(b => { if (!find(b.spellId, b.name)) { cls.abilities.push({ id: uid(), name: b.name, zone: null, cell: null, icon: "", spellId: b.spellId }); added++; } });
-  const nb = Object.keys(g.binds).length;
-  if ($("#gameBinds").checked && nb) {
-    state.binds = { ...g.binds };
-    Object.keys(g.binds).forEach(k => { const bar = state.bars.find(x => x.n === +k.split("-")[0]); if (bar) bar.show = true; });
-    ui.barsDone = true; saveUI();
-  }
-  ui.cls = cls.id; ui.tab = "abilities"; save(); $("#dlgGame").close(); render();
-  toast(`${cls.name}: ${placed} placed from your bars, ${added} new abilities${$("#gameBinds").checked && nb ? `, ${nb} keybinds` : ""}.`);
-  fetchIcons(cls);
-};
 // Look up icon names for abilities that have a spell ID, using Wowhead's public tooltip data.
 const iconCache = (() => { try { return JSON.parse(localStorage.getItem("keybind-atlas:icons") || "{}"); } catch (e) { return {}; } })();
 async function fetchIcons(cls) {
@@ -1875,7 +1839,102 @@ async function fetchIcons(cls) {
     if (icon && !a.icon) { a.icon = icon; changed++; }
   }
   try { localStorage.setItem("keybind-atlas:icons", JSON.stringify(iconCache)); } catch (e) {}
-  if (changed) { save(); if (ui.tab === "abilities" && curClass() === cls) refreshClass(); }
+  if (changed) { save(false); if (ui.tab === "abilities" && curClass() === cls) refreshClass(); }
+}
+
+/* ---------------- one "Import from WoW" window: bars, keybinds, layout ---------------- */
+// Everything pasted goes in one box. Each result is recognised by its shape:
+// ";Name;;item;..." = what's on the bars, "ACTIONBUTTON1@1 ..." = keybinds, "bind 1 ACTIONBUTTON1" = a bindings-cache.wtf,
+// digits first = an Edit Mode layout.
+function readWowPaste(text) {
+  const out = {};
+  const wtf = parseWtf(text); const line = parseBindsLine(text);
+  const binds = Object.keys(line).length ? line : wtf.binds;
+  if (Object.keys(binds).length) out.binds = binds;
+  const rest = text.replace(/(?:ACTIONBUTTON\d+|MULTIACTIONBAR\dBUTTON\d+)@\S+/g, " ").split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^bind\s/i.test(l));
+  for (const l of rest) {
+    if (/^(\/k)?;/.test(l)) { const g = parseGame(l); if (g.slots.length) out.game = g; }
+    else if (/^\d/.test(l)) { try { out.layout = parseEditMode(l); } catch (e) { out.layoutErr = e.message; } }
+  }
+  return out;
+}
+function openWowDialog() {
+  $("#wowLineA").textContent = GAME_LINES[0]; $("#wowLineB").textContent = WOW_BINDS_LINE;
+  $("#wowAll").value = "";
+  $("#wowTarget").innerHTML = `<option value="">A new class (named from the game)</option>` + state.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("#wowTarget").dataset.picked = "";
+  wowPreview(); $("#dlgWow").showModal();
+}
+function wowPreview() {
+  const r = readWowPaste($("#wowAll").value), li = [];
+  if (r.game) li.push(`<li>Bars: ${r.game.cls ? "a " + esc(r.game.cls) + ", " : ""}${r.game.slots.length} things on your bars${r.game.skipped ? ` (skipped ${r.game.skipped} profession spell${r.game.skipped > 1 ? "s" : ""})` : ""}</li>`);
+  if (r.binds) li.push(`<li>Keybinds: ${Object.keys(r.binds).length} action bar keys</li>`);
+  if (r.layout) li.push(`<li>Layout: ${r.layout.length} action bars from Edit Mode</li>`);
+  else if (r.layoutErr) li.push(`<li class="bad">Layout: ${esc(r.layoutErr)}</li>`);
+  if (!li.length && $("#wowAll").value.trim()) li.push(`<li class="bad">Nothing recognised yet. Paste the text from the box WoW opens.</li>`);
+  $("#wowFound").innerHTML = li.join("");
+  $("#wowScreenRow").hidden = !r.layout; $("#wowTargetRow").hidden = !r.game;
+  // Default to the class the game says this is: an existing one of that class, else a new one.
+  const tg = $("#wowTarget");
+  if (r.game && !tg.dataset.picked) { const cur = curClass(); const match = cur && baseOf(cur) === r.game.cls ? cur : state.classes.find(c => baseOf(c) === r.game.cls); tg.value = match ? match.id : ""; }
+  $("#wowGo").disabled = !(r.game || r.binds || r.layout);
+}
+$("#wowAll").addEventListener("input", wowPreview);
+$("#wowTarget").addEventListener("change", e => e.target.dataset.picked = "1");
+// Each new paste starts on its own line, so results pasted one after another stay apart.
+$("#wowAll").addEventListener("paste", e => {
+  const t = e.target, txt = e.clipboardData?.getData("text"); if (!txt || !t.value || /\n$/.test(t.value.slice(0, t.selectionStart))) return;
+  e.preventDefault(); t.setRangeText("\n" + txt.trim() + "\n", t.selectionStart, t.selectionEnd, "end"); wowPreview();
+});
+$("#wowCancel").onclick = () => $("#dlgWow").close();
+$("#dlgWow").addEventListener("click", async e => {
+  const b = e.target.closest("[data-copyline]"); if (!b) return;
+  const pre = $("#" + b.dataset.copyline);
+  try { await navigator.clipboard.writeText(pre.textContent); toast("Copied. Paste it into WoW chat and press Enter."); }
+  catch (err) { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press Ctrl+C to copy."); }
+});
+$("#wowGo").onclick = () => {
+  const r = readWowPaste($("#wowAll").value); if (!(r.game || r.binds || r.layout)) return;
+  if (!ui.barsDone) ui.tour = "paint";
+  const done = [];
+  if (r.layout) {
+    const [W, H] = $("#wowScreen").value.split("x").map(Number);
+    const bars = editModeToBars(r.layout, W, H); const m = r.layout.find(b => b.n === 1); if (m) state.endcaps = m.art;
+    bars.forEach(b => { b.up = !!state.bars.find(o => o.n === b.n)?.up; }); state.bars = bars; done.push("bar layout");
+  }
+  if (r.binds) {
+    state.binds = r.binds;
+    Object.keys(r.binds).forEach(k => { const bar = state.bars.find(x => x.n === +k.split("-")[0]); if (bar) bar.show = true; });
+    done.push(Object.keys(r.binds).length + " keybinds");
+  }
+  // Bars with abilities on them should be visible too.
+  if (r.game) r.game.slots.forEach(s => { const bar = state.bars.find(x => x.n === +s.cell.split("-")[0]); if (bar) bar.show = true; });
+  seedStarterPaint();
+  let cls = null;
+  if (r.game) { const g = applyGame(r.game, $("#wowTarget").value); cls = g.cls; done.push(`${cls.name}: ${g.placed} on your bars`); }
+  ui.barsDone = true;
+  saveUI(); save(); $("#dlgWow").close();
+  if (cls) { ui.cls = cls.id; go(ui.tour === "paint" ? "zones" : "abilities"); fetchIcons(cls); } else if (ui.tour === "paint") go("zones"); else render();
+  toast("Imported " + done.join(", ") + ".");
+};
+// Put each ability on the button it sits on in game. Returns the class and counts.
+function applyGame(g, targetId) {
+  let cls = state.classes.find(c => c.id === targetId);
+  if (!cls) { cls = { id: uid(), name: g.cls || "Imported class", base: CLASS_KITS[g.cls] ? g.cls : null, color: CLASS_KITS[g.cls]?.color || "#c7c3b8", abilities: [] }; state.classes.push(cls); }
+  const find = (spellId, name) => cls.abilities.find(a => (spellId && a.spellId === spellId) || a.name.toLowerCase() === name.toLowerCase());
+  let placed = 0, added = 0;
+  // Bar contents mirror the game: clear this class's buttons first, so anything moved or removed in game doesn't linger.
+  cls.abilities = cls.abilities.filter(a => !a.placeholder); cls.abilities.forEach(a => a.cell = null);
+  g.slots.forEach(s => {
+    let a = s.kind === "item" ? null : find(s.spellId, s.name);
+    if (!a && s.kind === "item") { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: null, placeholder: true }; cls.abilities.push(a); }
+    else if (!a) { a = { id: uid(), name: s.name, zone: null, cell: null, icon: "", spellId: s.spellId }; cls.abilities.push(a); added++; }
+    const other = cls.abilities.find(x => x.cell === s.cell && x !== a); if (other) other.cell = null;
+    a.cell = s.cell; a.spellId = a.spellId || s.spellId;
+    if (!a.zone && state.cells[s.cell]) a.zone = state.cells[s.cell];
+    placed++;
+  });
+  return { cls, placed, added };
 }
 
 /* ---------------- JSON export / import ---------------- */
@@ -1889,12 +1948,18 @@ $("#btnExport").onclick = () => {
   toast("Exported keybind-atlas.json");
 };
 $("#btnHelp").onclick = () => $("#dlgHelp").showModal();
+$("#btnUndo").onclick = undo; $("#btnRedo").onclick = redo;
+document.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== "z" && e.key.toLowerCase() !== "y") return;
+  if (ui.capture || document.querySelector("dialog[open]") || e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  e.preventDefault(); (e.key.toLowerCase() === "y" || e.shiftKey) ? redo() : undo();
+});
 $("#btnReset").onclick = async () => {
   if (!await confirmBox("Start over?", "This erases your bars, keybinds, categories and every class saved in this browser and takes you back to the welcome screen. Export JSON first if you want a backup.", "Erase and start over")) return;
   clearTimeout(saveTimer); saveTimer = null;
   try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(UI_KEY); } catch (e) {}
   state = blankState();
-  ui = { tab: "bars", brush: null, sel: null, editing: null, labels: true, labelsClass: false, capture: null, guide: "", barsDone: false, exported: false, cls: null };
+  ui = { tab: "bars", brush: null, sel: null, editing: null, labels: true, labelsClass: false, capture: null, guide: "", barsDone: false, exported: false, cls: null, tour: "" };
   setStatus("Nothing saved yet"); render(); window.scrollTo({ top: 0 }); toast("Everything was reset.");
 };
 $("#helpClose").onclick = () => $("#dlgHelp").close();
@@ -1951,6 +2016,7 @@ window.addEventListener("hashchange", loadSharedPlan);
   const local = loadLocal();
   if (local) { state = local; setStatus("Saved in this browser"); }
   else { state = blankState(); setStatus("Nothing saved yet"); }
+  committed = JSON.stringify(state);
   render();
   loadSharedPlan();
 })();
