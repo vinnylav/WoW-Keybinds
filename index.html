@@ -262,6 +262,11 @@ input[type=text], select, textarea {
 .blabel { position: absolute; transform: translate(-50%, -50%); pointer-events: none; font: 700 11px var(--f-fantasy); color: #fff3cf; background: rgba(0,0,0,.7); padding: 0 5px; border-radius: 3px; white-space: nowrap; opacity: .85; }
 .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(28px, min(54px, calc(500px / var(--rows))))); grid-template-rows: repeat(var(--rows), auto); width: max-content; max-width: none; }
 .grid-wrap { max-width: 100%; }
+.grid.has-caps { margin: 0 78px 8px; }
+.grid-wrap:has(.grid.has-caps.cap-top) { padding-top: 60px; }
+.endcap { position: absolute; width: 84px; transform: translate(-100%, -100%) translate(-4px, 6px); pointer-events: none; filter: drop-shadow(0 2px 3px #000); z-index: 1; }
+.endcap svg { display: block; width: 100%; height: auto; }
+.endcap.r { transform: translate(0, -100%) translate(4px, 6px) scaleX(-1); }
 .grid.fit { width: 100%; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); max-width: calc(var(--cols) * 40px); min-width: 0; }
 .grid .cell { width: 100%; }
 .capture-bar { background: rgba(0,0,0,.35); border: 1px solid var(--accent); padding: 8px 10px; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -485,6 +490,7 @@ function normalize(s) {
   const def = PRESETS.default.bars();
   s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
   s.binds = s.binds || {};
+  s.endcaps = s.endcaps !== false;
   s.cells = s.cells || {};
   s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null })) }));
   return s;
@@ -600,7 +606,8 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
   const selAb = cls && sel ? cls.abilities.find(a => a.id === sel) : null;
   const byCell = {};
   if (cls) cls.abilities.forEach(a => { if (a.cell) byCell[a.cell] = a; });
-  let h = `<div class="grid ${mini ? "fit" : ""} ${mode === "bars" ? "bars-mode" : ""} ${mode === "zones" ? "painting" : ""}" style="--cols:${L.W};--rows:${L.H}" data-grid>`;
+  const capBar = state.endcaps !== false && !mini && L.bars.find(b => b.n === 1 && state.bars.find(x => x.n === 1).orient === "h");
+  let h = `<div class="grid ${capBar ? "has-caps" + (capBar.y + capBar.h < 2 ? " cap-top" : "") : ""} ${mini ? "fit" : ""} ${mode === "bars" ? "bars-mode" : ""} ${mode === "zones" ? "painting" : ""}" style="--cols:${L.W};--rows:${L.H}" data-grid>`;
   L.cells.forEach(({ id, bar, i, r, c }) => {
     const z = zoneById(state.cells[id]);
     const a = byCell[id];
@@ -628,9 +635,34 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
     if (a && mismatched(a)) h += `<span class="warn" aria-label="Wrong zone">!</span>`;
     h += `</button>`;
   });
+  h += endCapsHTML(L, mini);
   if (showLabels) h += `<div class="zlabels">${zoneLabels(L)}</div>`;
   if (mode === "bars") h += `<div class="zlabels">${L.bars.map(b => `<span class="blabel" style="left:${(b.x + b.w / 2) / L.W * 100}%;top:${(b.y + b.h / 2) / L.H * 100}%">Bar ${b.n}</span>`).join("")}</div>`;
   return h + `</div>`;
+}
+// Original stone "winged guardian" end caps beside Bar 1, like the default UI's bar art.
+const CAP_SVG = (() => {
+  let f = "";
+  [[198, 64], [212, 70], [226, 72], [240, 68], [254, 60], [268, 50]].forEach(([a, len], k) => {
+    const r = a * Math.PI / 180, cx = 66 + Math.cos(r) * len / 2, cy = 74 + Math.sin(r) * len / 2;
+    f += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${len / 2}" ry="${7 - k * 0.4}" transform="rotate(${a} ${cx.toFixed(1)} ${cy.toFixed(1)})" fill="url(#capF)" stroke="#1b1a18" stroke-width="1.6"/>`;
+  });
+  return `<svg viewBox="0 0 110 130" aria-hidden="true"><defs>
+    <linearGradient id="capF" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9d6cf"/><stop offset=".55" stop-color="#8f8a80"/><stop offset="1" stop-color="#4b4741"/></linearGradient>
+    <linearGradient id="capS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8a399"/><stop offset="1" stop-color="#3c3934"/></linearGradient></defs>
+    ${f}
+    <path d="M110 112 C88 104 70 88 68 66 C66 46 76 30 92 26 C102 24 110 30 110 30 Z" fill="url(#capS)" stroke="#1b1a18" stroke-width="2"/>
+    <path d="M92 26 C84 20 74 22 70 30 L58 36 L72 40 C78 44 88 42 92 36 Z" fill="url(#capF)" stroke="#1b1a18" stroke-width="2"/>
+    <circle cx="80" cy="31" r="2.2" fill="#e8c46a"/>
+    <path d="M82 96 C90 88 100 88 110 92 L110 130 L60 130 C60 116 70 104 82 96 Z" fill="url(#capS)" stroke="#1b1a18" stroke-width="2"/>
+    <path d="M66 130 C68 120 74 114 82 112 M76 130 C78 122 84 118 92 117" fill="none" stroke="#1b1a18" stroke-width="1.6"/>
+  </svg>`;
+})();
+function endCapsHTML(L, mini) {
+  const b = state.endcaps !== false && !mini ? L.bars.find(x => x.n === 1) : null;
+  if (!b || state.bars.find(x => x.n === 1).orient !== "h") return "";
+  const fx = v => `calc(6px + (100% - 12px) * ${v / L.W})`, fy = v => `calc(6px + (100% - 12px) * ${v / L.H})`;
+  return `<span class="endcap l" style="left:${fx(b.x)};top:${fy(b.y + b.h)}">${CAP_SVG}</span><span class="endcap r" style="left:${fx(b.x + b.w)};top:${fy(b.y + b.h)}">${CAP_SVG}</span>`;
 }
 function zoneLabels(L) {
   const seen = new Set(); let out = "";
@@ -829,6 +861,7 @@ function barsSideHTML() {
               <select data-bf="orient" aria-label="Orientation">${opt("h", b.orient, "Horizontal")}${opt("v", b.orient, "Vertical")}</select>
               <select data-bf="lines" aria-label="${b.orient === "h" ? "Rows" : "Columns"}">${[1, 2, 3, 4, 6, 12].map(n => opt(n, b.lines, n + (b.orient === "h" ? (n === 1 ? " row" : " rows") : (n === 1 ? " col" : " cols")))).join("")}</select>
               <select data-bf="icons" aria-label="Number of buttons">${[6, 7, 8, 9, 10, 11, 12].map(n => opt(n, b.icons, n + " buttons")).join("")}</select>
+              ${b.n === 1 ? `<label class="inline"><input type="checkbox" id="chkCaps" ${state.endcaps !== false ? "checked" : ""}> End caps</label>` : ""}
             </div>
           </div>`).join("")}
       </div>
@@ -1206,6 +1239,7 @@ main.addEventListener("change", e => {
   if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); if (ui.tab === "zones") refreshZoneGrid(); else if (curClass()) refreshClass(true); else render(); return; }
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
   if (t.id === "firstClassKit" || t.id === "newClassKit") { const n = t.id.replace("Kit", "Name"); $("#" + n).placeholder = t.value && t.value !== "-" ? `${t.value} (or a spec name)` : "Name or spec, e.g. Ret Paladin"; return; }
+  if (t.id === "chkCaps") { state.endcaps = t.checked; save(); render(); return; }
   if (t.id === "presetSel") { ui.preset = t.value; $("#presetNote").textContent = PRESETS[t.value].note; return; }
   const br = t.closest("[data-bar]");
   if (br && t.dataset.bf) {
@@ -1366,7 +1400,7 @@ function parseEditMode(text) {
   if (!bars.length) throw new Error("No action bars found in that layout.");
   return bars.map(r => ({ n: r.idx + 1, def: r.def === 1, pt: r.pt, rpt: r.rpt, rel: r.rel, x: r.x, y: r.y,
     orient: r.settings[0] === 1 ? "v" : "h", lines: Math.max(1, r.settings[1] ?? 1), icons: Math.min(12, Math.max(6, r.settings[2] ?? 12)),
-    scale: (50 + 10 * (r.settings[3] ?? 5)) / 100, pad: r.settings[4] ?? 2, hidden: r.settings[5] === 3 }));
+    scale: (50 + 10 * (r.settings[3] ?? 5)) / 100, pad: r.settings[4] ?? 2, hidden: r.settings[5] === 3, art: r.settings[6] !== 1 }));
 }
 // Resolve anchors to screen rectangles, then snap to a button-sized grid.
 function editModeToBars(eb, W, H) {
@@ -1423,7 +1457,7 @@ $("#editGo").onclick = () => {
   if (!layoutTxt && !bindTxt) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = "Paste an Edit Mode layout, pick a keybinds file, or both."; return; }
   let bars = null, binds = null;
   if (layoutTxt) {
-    try { const [W, H] = $("#editScreen").value.split("x").map(Number); bars = editModeToBars(parseEditMode(layoutTxt), W, H); }
+    try { const [W, H] = $("#editScreen").value.split("x").map(Number); const eb = parseEditMode(layoutTxt); bars = editModeToBars(eb, W, H); const m = eb.find(b => b.n === 1); if (m) state.endcaps = m.art; }
     catch (err) { $("#editMsg").style.color = "var(--danger)"; $("#editMsg").textContent = err.message; return; }
   }
   if (bindTxt) {
