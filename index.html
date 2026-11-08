@@ -317,6 +317,24 @@ select option:checked { background: #6b5426; color: #fff; }
 .seg button[aria-pressed=true] { background: #6b5426 !important; color: #fff !important; }
 .plan-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
+
+/* Phones: fit the bars to the screen, shrink the chrome, keep the header out of the way. */
+@media (max-width: 600px) {
+  header { position: static; gap: 8px 10px; padding-block: 10px; }
+  .brand { font-size: 20px; }
+  .tab { font-size: 14px; padding: 4px 8px; }
+  .hdr-actions { gap: 4px; }
+  .hdr-actions .status { flex-basis: 100%; }
+  .hdr-actions button { font-size: 12px; padding: 4px 8px; }
+  .grid:not(.fit) { width: 100%; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); max-width: calc(var(--cols) * 54px); }
+  .grid.has-caps { margin: 0 34px 6px; width: calc(100% - 68px); }
+  .endcap { width: 38px; transform: translate(-100%, -100%) translate(-2px, 3px); }
+  .endcap.r { transform: translate(0, -100%) translate(2px, 3px) scaleX(-1); }
+  .grid-wrap:has(.grid.has-caps.cap-top) { padding-top: 28px; }
+  .cell .key { font-size: 9px; }
+  .grid.map .zlabel { font-size: 11px; }
+  dialog { max-width: calc(100vw - 16px); }
+}
 </style>
 </head>
 <body>
@@ -386,7 +404,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <p class="hint">No addon needed. In game, paste this line into the chat box and press Enter.</p>
   <pre class="macro" id="bindsLine"></pre>
   <div class="row" style="margin:6px 0"><button class="small" id="bindsCopy">Copy line</button></div>
-  <p class="hint">A box opens in the middle of your screen with everything already selected. Press Ctrl+C, then Esc to close it, and paste it here. Macros come in as "Macro" placeholders, since their names don't fit in one line. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
+  <p class="hint">A text box appears at the top of your screen. Click it (that selects everything), press Ctrl+C, and click anywhere else: the box closes by itself. Paste it here. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
   <textarea id="bindsText" rows="4" placeholder=" ACTIONBUTTON1@1 ACTIONBUTTON2@2 MULTIACTIONBAR1BUTTON5@SHIFT-Q …"></textarea>
   <p class="hint" id="bindsMsg"></p>
   <div class="row" style="justify-content:flex-end; margin-top:8px">
@@ -409,7 +427,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <p class="hint">No addon needed. Log into the character, paste this one line into the chat box and press Enter. The first time, WoW may ask you to allow scripts; say yes and paste it again.</p>
   <pre class="macro" id="gameLines"></pre>
   <div class="row" style="margin:6px 0"><button class="small" id="gameCopy">Copy line</button></div>
-  <p class="hint">A text box appears at the top of your screen. Click it (that selects everything), press Ctrl+C, and click anywhere else: the box closes by itself. Paste it here. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
+  <p class="hint">A box opens in the middle of your screen with everything already selected. Press Ctrl+C, then Esc to close it, and paste it here. Macros come in as "Macro" placeholders, since their names don't fit in one line. If nothing happens, type <code>/console scriptErrors 1</code>, paste the line again and tell us the error.</p>
   <textarea id="gameText" rows="6" placeholder=";1Heroic Strike;2Charge;3Rend;4;5…"></textarea>
   <div class="row" style="margin-top:6px">
     <label class="inline" for="gameTarget">Put them in</label>
@@ -531,7 +549,7 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 14";
+const BUILD = "Nov 8 · 15";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -975,7 +993,7 @@ function renderZones() {
   <section class="main-col">
     ${guideHTML()}
     ${planBarHTML(curClass() ? esc(curClass().name) : "Categories")}
-    <p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category on the right, then click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
+    <p class="hint">Categories are groups of buttons that hold the same job on every class, like "Interrupt always on R". Pick a category in the Categories panel, then tap, click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
     ${Object.keys(state.cells).length ? `<div class="row next-row"><button class="primary" data-plan="abilities">Done painting: place abilities →</button></div>` : ""}
   </section>
@@ -1016,7 +1034,7 @@ function renderClass() {
   <section class="main-col">
     ${guideHTML()}
     ${planBarHTML(esc(cls.name))}
-    <p class="hint">Add an ability on the right and pick its category; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
+    <p class="hint">Add an ability in the Class panel and pick its category; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
     ${ui.map !== false && state.zones.length ? `<div class="map-head">Categories</div><div class="grid-wrap zone-map" id="zoneMap">${gridHTML({ mode: "map", showLabels: true })}</div><div class="map-head">${esc(cls.name)}</div>` : ""}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.map === false && ui.labels })}</div>
     ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their categories</button></div>` : ""}
