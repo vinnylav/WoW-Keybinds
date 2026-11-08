@@ -1767,6 +1767,8 @@ $("#gameGo").onclick = () => {
   if (!cls) { cls = { id: uid(), name: g.cls || "Imported class", base: CLASS_KITS[g.cls] ? g.cls : null, color: CLASS_KITS[g.cls]?.color || "#c7c3b8", abilities: [] }; state.classes.push(cls); }
   const find = (spellId, name) => cls.abilities.find(a => (spellId && a.spellId === spellId) || a.name.toLowerCase() === name.toLowerCase());
   let placed = 0, added = 0;
+  // Bar contents mirror the game: clear this class's buttons first, so anything you moved or removed in game doesn't linger here.
+  if (g.slots.length) cls.abilities.forEach(a => a.cell = null);
   // Bar contents: put each ability on the button it sits on in game.
   g.slots.forEach(s => {
     let a = find(s.spellId, s.name);
