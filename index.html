@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Keybind Atlas</title>
-<meta name="description" content="Define keybind zones once, then slot each class's abilities into them so every class keeps the same layout.">
+<meta name="description" content="A keyboard planner for World of Warcraft: Forever. Keep your interrupt, stuns and defensives on the same keys on every character.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -66,6 +66,7 @@ header {
 }
 .brand { font-family: var(--f-display); font-weight: 700; font-size: 24px; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
 .brand span { color: var(--accent); }
+.brand .edition { font: 600 11px var(--f-body); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: #1a1408; background: var(--accent); padding: 2px 7px; border-radius: 3px; vertical-align: 4px; margin-left: 6px; white-space: nowrap; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; min-width: 0; }
 .tab {
   font-family: var(--f-display); font-size: 16px; font-weight: 600; letter-spacing: .03em;
@@ -139,8 +140,9 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)
 .zlabels { position: absolute; inset: 6px; pointer-events: none; }
 .zlabel {
   position: absolute; transform: translate(-50%, -50%);
-  font: 700 clamp(12px, 2vw, 18px)/1.02 var(--f-display); text-align: center; color: #fff;
-  text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px #000; letter-spacing: .02em; max-width: 30%;
+  font: 700 11px/1.2 var(--f-display); text-align: center; color: #fff; letter-spacing: .03em;
+  padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--zc, #333) 80%, #000);
+  box-shadow: 0 1px 3px #000a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30%;
 }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -165,6 +167,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)
 .ab.sel { border-color: var(--accent); background: var(--panel-2); }
 .ab .thumb { width: 30px; height: 30px; border-radius: 4px; overflow: hidden; display: grid; place-items: center; background: var(--cell); font: 700 13px var(--f-display); color: #fff; }
 .ab .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ab .nm small.role { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-left: 4px; }
 .ab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab .slot { font: 500 11px var(--f-mono); color: var(--muted); }
 .ab .slot.un { color: var(--accent); }
@@ -274,12 +277,19 @@ details.manual summary { cursor: pointer; font: 600 15px var(--f-fantasy); color
 .welcome h2 { font-size: 18px !important; }
 .next-row { justify-content: flex-end; }
 .help-steps { display: grid; gap: 8px; padding-left: 20px; margin: 8px 0; }
+select { background-color: #120f0b; color: var(--fg); }
+select option, select optgroup { background: #1b1712; color: #ece6d6; }
+select option:checked { background: #6b5426; color: #fff; }
+.seg { display: inline-flex; border: 1px solid #6b5426; border-radius: 6px; overflow: hidden; }
+.seg button { border: 0 !important; border-image: none !important; border-radius: 0 !important; background: transparent !important; padding: 6px 14px !important; font-size: 13px !important; color: #cfc4a6 !important; }
+.seg button[aria-pressed=true] { background: #6b5426 !important; color: #fff !important; }
+.plan-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; border: 1px solid var(--line); padding: 8px; font: 11px/1.4 var(--f-mono); max-height: 260px; overflow: auto; margin: 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1 class="brand">Keybind <span>Atlas</span></h1>
+  <h1 class="brand">Keybind <span>Atlas</span> <em class="edition" title="Built for World of Warcraft: Forever">for WoW Forever</em></h1>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
   <div class="hdr-actions">
     <span class="status" id="status"></span>
@@ -476,7 +486,7 @@ function normalize(s) {
   s.bars = def.map(d => { const b = s.bars.find(x => x.n === d.n) || d; return { n: d.n, show: !!b.show, orient: b.orient === "v" ? "v" : "h", lines: clampInt(b.lines, 1, 12, 1), icons: clampInt(b.icons, 6, 12, 12), x: clampInt(b.x, 0, 60, 0), y: clampInt(b.y, 0, 60, 0) }; });
   s.binds = s.binds || {};
   s.cells = s.cells || {};
-  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null })) }));
+  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null })) }));
   return s;
 }
 function clampInt(v, lo, hi, d) { v = parseInt(v, 10); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
@@ -611,7 +621,7 @@ function gridHTML({ cls = null, mini = false, mode = "", showLabels = false, sel
       if (nb(r, c + 1) !== z.id) sh.push("inset -2px 0 0 var(--z)");
     }
     const title = `${BAR_NAME(bar)}, button ${i}${key ? " · " + key : " · no key"}${z ? " · " + z.name : ""}${a ? " · " + a.name : ""}${a && mismatched(a) ? " (belongs in " + (zoneById(a.zone)?.name || "?") + ")" : ""}`;
-    h += `<button class="${cl.join(" ")}" data-cell="${id}" ${a ? `data-ab="${a.id}" data-name="${esc(a.name)}" draggable="${mini ? "false" : "true"}"` : ""} style="grid-row:${r + 1};grid-column:${c + 1};--z:${z ? z.color : "transparent"}" title="${esc(title)}" ${mini ? 'tabindex="-1"' : ""}>`;
+    h += `<button class="${cl.join(" ")}" data-cell="${id}" ${a ? `data-ab="${a.id}" data-name="${esc(a.name)}" draggable="${mini || mode === "zones" ? "false" : "true"}"` : ""} style="grid-row:${r + 1};grid-column:${c + 1};--z:${z ? z.color : "transparent"}" title="${esc(title)}" ${mini ? 'tabindex="-1"' : ""}>`;
     if (a) h += `<div class="ab-tile">${tileHTML(a)}</div>`;
     if (sh.length) h += `<div class="edges" style="box-shadow:${sh.join(",")}"></div>`;
     h += `<span class="key">${esc(key ? shortKey(key) : (mode === "bars" ? "·" : ""))}</span>`;
@@ -634,24 +644,87 @@ function zoneLabels(L) {
     const z = zoneById(zid); if (!z) return;
     const minR = Math.min(...comp.map(p => p[0])), maxR = Math.max(...comp.map(p => p[0]));
     const minC = Math.min(...comp.map(p => p[1])), maxC = Math.max(...comp.map(p => p[1]));
-    const cy = ((minR + maxR + 1) / 2) / L.H * 100, cx = ((minC + maxC + 1) / 2) / L.W * 100;
+    const cy = minR / L.H * 100, cx = ((minC + maxC + 1) / 2) / L.W * 100;
     const w = (maxC - minC + 1) / L.W * 100;
-    out += `<span class="zlabel" style="left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / L.W) - 0.5}%">${esc(z.name)}</span>`;
+    out += `<span class="zlabel" title="${esc(z.name)}" style="--zc:${z.color};left:${cx}%;top:${cy}%;max-width:${Math.max(w, 100 / L.W) - 0.3}%">${esc(z.name)}</span>`;
   });
   return out;
 }
 
+
+/* ---------------- class kits ----------------
+   What each class uses for the jobs people most want on the same key everywhere.
+   Names only (no cooldowns or numbers); edit freely. Based on current Retail names. */
+const ROLES = [
+  ["Interrupt", ["interrupt", "int", "kick"]],
+  ["Stun / CC", ["stun", "cc", "control"]],
+  ["Defensive", ["defen", "def"]],
+  ["Movement", ["move", "travel", "mobility"]],
+  ["Taunt", ["taunt"]],
+];
+const CLASS_KITS = {
+  "Death Knight": { color: "#c41e3a", Interrupt: ["Mind Freeze", 47528], "Stun / CC": ["Asphyxiate"], Defensive: ["Icebound Fortitude"], Movement: ["Death's Advance"], Taunt: ["Dark Command"] },
+  "Demon Hunter": { color: "#a330c9", Interrupt: ["Disrupt", 183752], "Stun / CC": ["Chaos Nova"], Defensive: ["Blur"], Movement: ["Fel Rush"], Taunt: ["Torment"] },
+  "Druid": { color: "#ff7c0a", Interrupt: ["Skull Bash", 106839], "Stun / CC": ["Mighty Bash"], Defensive: ["Barkskin"], Movement: ["Dash"], Taunt: ["Growl"] },
+  "Evoker": { color: "#33937f", Interrupt: ["Quell", 351338], "Stun / CC": ["Sleep Walk"], Defensive: ["Obsidian Scales"], Movement: ["Hover"] },
+  "Hunter": { color: "#aad372", Interrupt: ["Counter Shot", 147362], "Stun / CC": ["Intimidation"], Defensive: ["Aspect of the Turtle"], Movement: ["Disengage"] },
+  "Mage": { color: "#3fc7eb", Interrupt: ["Counterspell", 2139], "Stun / CC": ["Frost Nova"], Defensive: ["Ice Block"], Movement: ["Blink"] },
+  "Monk": { color: "#00ff98", Interrupt: ["Spear Hand Strike", 116705], "Stun / CC": ["Leg Sweep"], Defensive: ["Fortifying Brew"], Movement: ["Roll"], Taunt: ["Provoke"] },
+  "Paladin": { color: "#f48cba", Interrupt: ["Rebuke", 96231], "Stun / CC": ["Hammer of Justice"], Defensive: ["Divine Shield"], Movement: ["Divine Steed"], Taunt: ["Hand of Reckoning"] },
+  "Priest": { color: "#ffffff", Interrupt: ["Silence", 15487], "Stun / CC": ["Psychic Scream"], Defensive: ["Desperate Prayer"], Movement: ["Angelic Feather"] },
+  "Rogue": { color: "#fff468", Interrupt: ["Kick", 1766], "Stun / CC": ["Kidney Shot"], Defensive: ["Cloak of Shadows"], Movement: ["Sprint"] },
+  "Shaman": { color: "#0070dd", Interrupt: ["Wind Shear", 57994], "Stun / CC": ["Capacitor Totem"], Defensive: ["Astral Shift"], Movement: ["Ghost Wolf"] },
+  "Warlock": { color: "#8788ee", Interrupt: ["Spell Lock", 19647], "Stun / CC": ["Shadowfury"], Defensive: ["Unending Resolve"], Movement: ["Demonic Circle: Teleport"] },
+  "Warrior": { color: "#c69b6d", Interrupt: ["Pummel", 6552], "Stun / CC": ["Storm Bolt"], Defensive: ["Shield Wall"], Movement: ["Charge"], Taunt: ["Taunt"] },
+};
+// Zone that best matches a role, by name.
+function zoneForRole(role) {
+  const keys = ROLES.find(r => r[0] === role)?.[1] || [];
+  return state.zones.find(z => keys.some(k => z.name.toLowerCase().startsWith(k) || z.name.toLowerCase().includes(k + " ") || z.name.toLowerCase() === k)) || null;
+}
+function kitAbilities(className) {
+  const kit = CLASS_KITS[className]; if (!kit) return [];
+  return ROLES.filter(([r]) => kit[r]).map(([r]) => ({ id: uid(), name: kit[r][0], spellId: kit[r][1] || null, role: r, zone: zoneForRole(r)?.id || null, cell: null, icon: "" }));
+}
+function newClassFormHTML(id, first) {
+  return `<form id="${id}" class="new-class" style="display:grid;gap:8px">
+    <h2>${first ? "Add your first class" : "New class"}</h2>
+    <div class="row"><select id="${id}Kit" aria-label="Class" style="flex:1"><option value="">Pick a class…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}<option value="-">Other (just a name)</option></select></div>
+    <div class="row"><input type="text" id="${id}Name" placeholder="Name or spec, e.g. Ret Paladin" aria-label="Class or spec name"><button class="primary" type="submit">Add</button></div>
+    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. The names come from current Retail; rename any that differ in Forever.</p>
+    ${first ? `<p class="hint">Or <button type="button" class="small" data-act="game-import">Import from game</button> to read your spellbook and bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
+  </form>`;
+}
+function submitNewClass(id) {
+  const kitName = $(`#${id}Kit`).value; const typed = $(`#${id}Name`).value.trim();
+  const kit = CLASS_KITS[kitName];
+  const name = typed || (kit ? kitName : "");
+  if (!name) { toast("Pick a class or type a name."); return; }
+  const c = { id: uid(), name, color: kit ? kit.color : "#c7c3b8", abilities: kit ? kitAbilities(kitName) : [] };
+  // drop kit abilities into the first free button of their zone
+  c.abilities.forEach(a => { if (a.zone) a.cell = zoneCells(a.zone).find(cell => !c.abilities.some(b => b.cell === cell)) || null; });
+  state.classes.push(c); ui.cls = c.id; ui.addingClass = false; ui.tab = "abilities"; ui.planMode = "abilities"; save(); saveUI(); render();
+  const placed = c.abilities.filter(a => a.cell).length;
+  toast(kit ? `${name}: added ${c.abilities.length} key abilities, ${placed} placed in zones.` : `${name} added.`);
+  setTimeout(() => $("#newAbName")?.focus(), 0);
+  fetchIcons(c);
+}
+
 /* ---------------- mode switch ---------------- */
-const MODES = [["bars", "1", "Bars & keys"], ["zones", "2", "Zones"], ["abilities", "3", "Abilities"]];
+const MODES = [["bars", "1", "Bars & keys"], ["plan", "2", "Plan"]];
+const isPlan = () => ui.tab === "zones" || ui.tab === "abilities";
 function renderTabs() {
-  $("#tabs").innerHTML = MODES.map(([k, n, label]) => `<button class="tab step" role="tab" aria-selected="${ui.tab === k}" data-tab="${k}"><i>${n}</i>${label}</button>`).join("")
+  $("#tabs").innerHTML = MODES.map(([k, n, label]) => `<button class="tab step" role="tab" aria-selected="${k === "plan" ? isPlan() : ui.tab === k}" data-tab="${k}"><i>${n}</i>${label}</button>`).join("")
     + `<button class="tab" role="tab" aria-selected="${ui.tab === "overview"}" data-tab="overview">Compare</button>`;
 }
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   go(b.dataset.tab);
 });
-function go(tab) { ui.tab = tab; ui.sel = null; ui.editing = null; ui.capture = null; saveUI(); render(); window.scrollTo({ top: 0 }); }
+function go(tab) {
+  if (tab === "plan") tab = ui.planMode || (Object.keys(state.cells).length ? "abilities" : "zones");
+  if (tab === "zones" || tab === "abilities") ui.planMode = tab;
+  ui.tab = tab; ui.sel = null; ui.editing = null; ui.capture = null; saveUI(); render(); window.scrollTo({ top: 0 }); }
 function addClass(from = null, name = "New class") {
   const c = from
     ? { ...JSON.parse(JSON.stringify(from)), id: uid(), name: from.name + " copy" }
@@ -677,28 +750,35 @@ function render() {
 function guideHTML() {
   if (ui.barsDone || ui.tab !== "bars") return "";
   return `<div class="guide welcome" role="region" aria-label="Welcome">
-    <h2>Welcome! Start with your action bars</h2>
-    <p class="hint">Bring in the bars and keybinds you already use in WoW, or start from the default Blizzard UI. Zones and abilities come next. Everything saves in this browser only.</p>
+    <h2>Welcome! Plan your WoW Forever keybinds</h2>
+    <p class="hint">Keep the same job on the same key for every character: interrupt always on R, defensive always on Shift+E, whatever your class. Start with your action bars: bring in what you use in Forever, or start from the default Blizzard UI. Everything saves in this browser only.</p>
     <div class="row"><button class="primary" data-act="edit-import">Import Layout from WoW</button><button data-act="keep-default">Use Default Blizzard UI Layout</button></div>
+  </div>`;
+}
+function planBarHTML(title) {
+  const z = ui.tab === "zones";
+  return `<div class="plan-bar">
+    <h2>${title}</h2>
+    <div class="row">
+      <div class="seg" role="group" aria-label="What clicking the bars does">
+        <button data-plan="abilities" aria-pressed="${!z}">Place abilities</button>
+        <button data-plan="zones" aria-pressed="${z}">Edit zones</button>
+      </div>
+      <label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Zone names</label>
+    </div>
   </div>`;
 }
 function nextHTML(tab, label) { return `<div class="row next-row"><button class="primary" data-goto="${tab}">${label} →</button></div>`; }
 function renderNoClass() {
   $("#main").innerHTML = `
   <section class="main-col">
-    <h2>Abilities</h2>
-    <p class="hint">Abilities belong to a class or spec. Add your first one, then drop its abilities into your zones.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: true })}</div>
+    ${planBarHTML("Abilities")}
+    <p class="hint">Add your first class on the right. Its key abilities drop straight into your zones.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ showLabels: ui.labels })}</div>
   </section>
   <aside class="side" id="side">
-    <form id="firstClass" style="display:grid;gap:8px">
-      <h2>Add your first class</h2>
-      <div class="row"><button class="primary" type="button" data-act="game-import">Import from game</button></div>
-      <p class="hint">Reads your spellbook and bars from the character you're logged into. Or type a name:</p>
-      <div class="row"><input type="text" id="firstClassName" placeholder="e.g. Ret Paladin" aria-label="Class or spec name" required><button class="primary" type="submit">Add</button></div>
-    </form>
+    ${newClassFormHTML("firstClass", true)}
   </aside>`;
-  setTimeout(() => $("#firstClassName")?.focus(), 0);
 }
 
 /* ===== Bars view ===== */
@@ -711,7 +791,7 @@ function renderBars() {
     <p class="hint">Click any button, then press the key you use for it. Drag a bar to move it.</p>
     ${capBar}
     <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "bars" })}</div>
-    ${ui.barsDone ? nextHTML("zones", "Next: paint your zones") : ""}
+    ${ui.barsDone ? nextHTML("plan", "Next: plan your keys") : ""}
   </section>
   <aside class="side" id="side">${barsSideHTML()}</aside>`;
 }
@@ -766,11 +846,10 @@ function renderZones() {
   $("#main").innerHTML = `
   <section class="main-col">
     ${guideHTML()}
-    <h2>Zones</h2>
-    <p class="hint">Zones are areas of your bars that hold the same kind of ability on every class. Pick a zone on the right, then click or drag across buttons to paint it. Drag again over painted buttons to erase.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ mode: "zones", showLabels: ui.labels })}</div>
-    <div class="row"><label class="inline"><input type="checkbox" id="chkLabels" ${ui.labels ? "checked" : ""}> Show zone names</label></div>
-    ${Object.keys(state.cells).length ? nextHTML("abilities", "Next: add abilities") : ""}
+    ${planBarHTML(curClass() ? esc(curClass().name) : "Zones")}
+    <p class="hint">Zones are areas of your keyboard that hold the same job on every class, like "Interrupt always on R". Pick a zone on the right, then click or drag across buttons to paint it. Drag over painted buttons to erase.</p>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls: curClass(), mode: "zones", showLabels: ui.labels })}</div>
+    ${Object.keys(state.cells).length ? `<div class="row next-row"><button class="primary" data-plan="abilities">Done painting: place abilities →</button></div>` : ""}
   </section>
   <aside class="side" id="side">
     <div style="display:grid;gap:8px">
@@ -796,7 +875,7 @@ function zoneListHTML() {
   }).join("");
 }
 function refreshGrid(opts) { const w = $("#gridWrap"); if (w) w.innerHTML = gridHTML(opts); }
-const refreshZoneGrid = () => refreshGrid({ mode: "zones", showLabels: ui.labels });
+const refreshZoneGrid = () => refreshGrid({ cls: curClass(), mode: "zones", showLabels: ui.labels });
 const refreshBarsGrid = () => refreshGrid({ mode: "bars" });
 
 /* ===== Class view ===== */
@@ -807,15 +886,10 @@ function renderClass() {
   $("#main").innerHTML = `
   <section class="main-col">
     ${guideHTML()}
-    <div class="row" style="justify-content:space-between">
-      <h2>${esc(cls.name)}</h2>
-      <div class="row">
-        <label class="inline"><input type="checkbox" id="chkLabelsC" ${ui.labelsClass ? "checked" : ""}> Zone names</label>
-        <button class="small" data-act="autoplace" ${unplaced ? "" : "disabled"}>Auto-place ${unplaced ? "(" + unplaced + ")" : ""}</button>
-      </div>
-    </div>
+    ${planBarHTML(esc(cls.name))}
     <p class="hint">Add an ability on the right and pick its zone; it lands in a free button there. To move one, drag it, or click it and then click another button.</p>
-    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labelsClass })}</div>
+    <div class="grid-wrap" id="gridWrap">${gridHTML({ cls, sel: ui.sel, showLabels: ui.labels })}</div>
+    ${unplaced ? `<div class="row"><button class="small" data-act="autoplace">Auto-place ${unplaced} unplaced into their zones</button></div>` : ""}
     ${bad ? `<p class="hint" style="color:var(--danger)">${bad} abilit${bad === 1 ? "y sits" : "ies sit"} outside ${bad === 1 ? "its" : "their"} zone (marked !). Move ${bad === 1 ? "it" : "them"} or change the zone.</p>` : ""}
     <div class="legend">${state.zones.map(z => `<span><i class="sw" style="background:${esc(z.color)}"></i>${esc(z.name)}</span>`).join("")}</div>
     ${state.classes.length > 1 ? nextHTML("overview", "Compare all classes") : ""}
@@ -823,6 +897,7 @@ function renderClass() {
   <aside class="side" id="side">${classSideHTML(cls)}</aside>`;
 }
 function classSideHTML(cls) {
+  if (ui.addingClass) return newClassFormHTML("newClass", false);
   const zopts = sel => `<option value="">No zone</option>` + state.zones.map(z => `<option value="${z.id}" ${sel === z.id ? "selected" : ""}>${esc(z.name)}</option>`).join("");
   let h = `
   <div style="display:grid;gap:8px">
@@ -852,7 +927,7 @@ function classSideHTML(cls) {
       const src = iconSrc(a.icon);
       h += `<button class="ab ${ui.sel === a.id ? "sel" : ""}" data-ab="${a.id}" data-name="${esc(a.name)}" draggable="true">
         <span class="thumb" style="background:${esc(z.color)}">${src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">` : esc(initials(a.name))}</span>
-        <span class="nm">${esc(a.name)}</span>
+        <span class="nm">${esc(a.name)}${a.role ? ` <small class="role">${esc(a.role)}</small>` : ""}</span>
         <span class="slot ${!a.cell ? "un" : mismatched(a) ? "bad" : ""}">${esc(a.cell ? slotLabel(a.cell) : "unplaced")}</span>
         <span class="small ghost" data-edit="${a.id}" role="button" tabindex="0" aria-label="Edit ${esc(a.name)}" style="padding:2px 6px;color:var(--muted)">Edit</span>
       </button>`;
@@ -878,7 +953,7 @@ function editorHTML(a, zopts) {
 }
 function refreshClass(gridOnly = false) {
   const cls = curClass(); if (!cls) return render();
-  if (gridOnly) refreshGrid({ cls, sel: ui.sel, showLabels: ui.labelsClass });
+  if (gridOnly) refreshGrid({ cls, sel: ui.sel, showLabels: ui.labels });
   else renderClass();
 }
 
@@ -994,6 +1069,8 @@ main.addEventListener("click", async e => {
   const t = e.target;
   const act = t.closest("[data-act]")?.dataset.act;
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
+  const planBtn = t.closest("[data-plan]");
+  if (planBtn) { go(planBtn.dataset.plan); return; }
   if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
   if (act === "game-import") { openGameImport(); return; }
@@ -1056,7 +1133,8 @@ main.addEventListener("click", async e => {
     save(); refreshClass(); toast(n ? `Placed ${n}.` : "No free buttons in those zones. Paint more on the Zones tab."); return;
   }
   if (act === "dup-class") return addClass(cls);
-  if (act === "new-class") return addClass();
+  if (act === "new-class") { ui.addingClass = true; refreshClass(); setTimeout(() => $("#newClassKit")?.focus(), 0); return; }
+  if (act === "cancel-new-class") { ui.addingClass = false; refreshClass(); return; }
   if (act === "del-class") {
     if (!await confirmBox(`Delete ${cls.name}?`, `This removes the class and its ${cls.abilities.length} abilities. Export first if you might want it back.`, "Delete class")) return;
     state.classes = state.classes.filter(c => c !== cls); ui.cls = state.classes[0]?.id || null; save(); render(); return;
@@ -1090,7 +1168,7 @@ function moveTo(cls, a, cellId) {
   a.cell = cellId;
 }
 main.addEventListener("submit", e => {
-  if (e.target.id === "firstClass") { e.preventDefault(); const n = $("#firstClassName").value.trim(); if (n) addClass(null, n); return; }
+  if (e.target.id === "firstClass" || e.target.id === "newClass") { e.preventDefault(); submitNewClass(e.target.id); return; }
   if (e.target.id !== "addAb") return;
   e.preventDefault();
   const cls = curClass(); const name = $("#newAbName").value.trim(); if (!name) return;
@@ -1125,8 +1203,9 @@ main.addEventListener("input", e => {
 main.addEventListener("toggle", e => { if (e.target.id === "manual") ui.manualOpen = e.target.open; }, true);
 main.addEventListener("change", e => {
   const t = e.target;
-  if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); refreshZoneGrid(); return; }
+  if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); if (ui.tab === "zones") refreshZoneGrid(); else if (curClass()) refreshClass(true); else render(); return; }
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
+  if (t.id === "firstClassKit" || t.id === "newClassKit") { const n = t.id.replace("Kit", "Name"); $("#" + n).placeholder = t.value && t.value !== "-" ? `${t.value} (or a spec name)` : "Name or spec, e.g. Ret Paladin"; return; }
   if (t.id === "presetSel") { ui.preset = t.value; $("#presetNote").textContent = PRESETS[t.value].note; return; }
   const br = t.closest("[data-bar]");
   if (br && t.dataset.bf) {
