@@ -167,6 +167,18 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)
 .ab.sel { border-color: var(--accent); background: var(--panel-2); }
 .ab .thumb { width: 30px; height: 30px; border-radius: 4px; overflow: hidden; display: grid; place-items: center; background: var(--cell); font: 700 13px var(--f-display); color: #fff; }
 .ab .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.book { display: grid; gap: 6px; }
+.book h2 small { font-size: 10px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-left: 4px; }
+.book-list { display: grid; gap: 1px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+.book-tree { font: 600 11px var(--f-fantasy); color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin: 8px 0 2px; }
+.spell { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: none; border: 0; border-radius: 4px; padding: 4px 6px; color: var(--fg); font-size: 13px; cursor: pointer; }
+.spell:hover:not(:disabled) { background: rgba(255,255,255,.07) !important; }
+.spell span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spell small { color: var(--muted); font-size: 11px; font-family: var(--f-mono, monospace); width: 2.6em; text-align: right; }
+.spell.got { opacity: .4; cursor: default; }
+.spell .tag { font: 600 9px/1 sans-serif; font-style: normal; text-transform: uppercase; letter-spacing: .04em; padding: 2px 4px; border-radius: 3px; background: #3a3326; color: #d8c9a4; }
+.spell .tag.new { background: #2f6b3a; color: #e4ffe8; }
+.spell .tag.tal { background: #3b2f5c; color: #e3dcff; }
 .ab .nm small.role { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-left: 4px; }
 .ab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab .slot { font: 500 11px var(--f-mono); color: var(--muted); }
@@ -203,13 +215,13 @@ dialog h2 { margin: 0 0 8px; font-family: var(--f-display); text-transform: uppe
 .side h2, .main-col h2, .guide h2 { text-transform: none; letter-spacing: .04em; font-size: 15px; color: #d9c79a; }
 .zgroup-h { font-size: 13px; }
 .ov-card h3 { font-size: 16px; }
-button:not(.cell):not(.ab):not(.tab):not(.ov-card) {
+button:not(.cell):not(.ab):not(.tab):not(.ov-card):not(.spell) {
   border: 6px solid transparent; border-radius: 0;
   border-image: url("assets/wc/tab-list.webp") 14 fill / 6px stretch;
   background: none; color: #eadfc4; padding: 3px 10px; font-family: var(--f-fantasy); font-size: 12px; font-weight: 600; letter-spacing: .03em;
 }
-button:not(.cell):not(.ab):not(.tab):not(.ov-card):hover:not(:disabled) { filter: brightness(1.2); }
-button:not(.cell):not(.ab):not(.tab):not(.ov-card):active:not(:disabled) { filter: brightness(.8); }
+button:not(.cell):not(.ab):not(.tab):not(.ov-card):not(.spell):hover:not(:disabled) { filter: brightness(1.2); }
+button:not(.cell):not(.ab):not(.tab):not(.ov-card):not(.spell):active:not(:disabled) { filter: brightness(.8); }
 button:disabled { opacity: .45; cursor: default; }
 button.primary:not(.cell) { border-image: url("assets/wc/button-bg-sm.webp") 16 fill / 6px stretch !important; color: #fff !important; }
 button.danger:not(.cell) { color: #ff9b9b !important; }
@@ -394,6 +406,7 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   </div>
 </dialog>
 
+<script src="data/forever-spells.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -492,7 +505,7 @@ function normalize(s) {
   s.binds = s.binds || {};
   s.endcaps = s.endcaps !== false;
   s.cells = s.cells || {};
-  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null })) }));
+  s.classes = (s.classes || []).map(c => ({ id: c.id || uid(), name: c.name || "Class", color: c.color || "#cccccc", base: c.base || guessBase(c.name), abilities: (c.abilities || []).map(a => ({ id: a.id || uid(), name: a.name || "Ability", zone: a.zone ?? null, cell: a.cell ?? null, icon: a.icon || "", spellId: a.spellId || null, role: a.role || null })) }));
   return s;
 }
 function clampInt(v, lo, hi, d) { v = parseInt(v, 10); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
@@ -697,7 +710,7 @@ const ROLES = [
 ];
 const CLASS_KITS = {
   "Druid": { color: "#ff7c0a", Interrupt: ["Feral Charge", 16979], "Stun / CC": ["Bash", 5211], Defensive: ["Barkskin", 22812], Movement: ["Dash", 1850], Taunt: ["Growl", 6795] },
-  "Hunter": { color: "#aad372", "Stun / CC": ["Scatter Shot", 19503], Defensive: ["Deterrence", 19263], Movement: ["Aspect of the Cheetah", 5118], Taunt: ["Growl (pet)", 2649] },
+  "Hunter": { color: "#aad372", "Stun / CC": ["Scatter Shot", 19503], Defensive: ["Deterrence", 19263], Movement: ["Aspect of the Cheetah", 5118], Taunt: ["Distracting Shot", 20736] },
   "Mage": { color: "#3fc7eb", Interrupt: ["Counterspell", 2139], "Stun / CC": ["Frost Nova", 122], Defensive: ["Ice Block", 11958], Movement: ["Blink", 1953] },
   "Paladin": { color: "#f48cba", "Stun / CC": ["Hammer of Justice", 853], Defensive: ["Divine Shield", 642], Movement: ["Blessing of Freedom", 1044] },
   "Priest": { color: "#ffffff", Interrupt: ["Silence", 15487], "Stun / CC": ["Psychic Scream", 8122], Defensive: ["Power Word: Shield", 17] },
@@ -720,16 +733,50 @@ function newClassFormHTML(id, first) {
     <h2>${first ? "Add your first class" : "New class"}</h2>
     <div class="row"><select id="${id}Kit" aria-label="Class" style="flex:1"><option value="">Pick a class…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}<option value="-">Other (just a name)</option></select></div>
     <div class="row"><input type="text" id="${id}Name" placeholder="Name or spec, e.g. Ret Paladin" aria-label="Class or spec name"><button class="primary" type="submit">Add</button></div>
-    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. Names follow the Classic-era spellbook, so rename any that changed in Forever.</p>
+    <p class="hint">Picking a class adds its interrupt, stun, defensive, movement and taunt, dropped into matching zones. You also get the class's full WoW Forever spellbook to pick from.</p>
     ${first ? `<p class="hint">Or <button type="button" class="small" data-act="game-import">Import from game</button> to read your spellbook and bars.</p>` : `<div class="row"><button type="button" class="small ghost" data-act="cancel-new-class">Cancel</button></div>`}
   </form>`;
+}
+const guessBase = name => Object.keys(CLASS_KITS).find(k => new RegExp("\\b" + k + "\\b", "i").test(name || "")) || null;
+const baseOf = cls => cls.base || guessBase(cls.name);
+// The class's Forever spellbook, filtered, grouped by tree.
+function spellbookHTML(cls) {
+  const base = baseOf(cls), book = base && window.FOREVER_SPELLS?.[base];
+  if (!book) return `<div class="book"><h2>Spellbook</h2><p class="hint">Pick which class this is to see its WoW Forever spells:</p><select id="baseClass" aria-label="Base class"><option value="">Choose…</option>${Object.keys(CLASS_KITS).map(k => `<option>${k}</option>`).join("")}</select></div>`;
+  const have = new Set(cls.abilities.map(a => a.name.toLowerCase()));
+  const q = (ui.bookQ || "").toLowerCase();
+  const trees = {};
+  book.forEach(([n, lvl, tree, tag]) => { if (q && !n.toLowerCase().includes(q)) return; (trees[tree] = trees[tree] || []).push([n, lvl, tag]); });
+  let h = `<div class="book"><h2>${esc(base)} spellbook <small>WoW Forever</small></h2>
+    <div class="row"><input type="search" id="bookQ" value="${esc(ui.bookQ || "")}" placeholder="Filter ${book.length} spells" aria-label="Filter spells"></div>
+    <p class="hint">Click a spell to add it to the zone picked above.</p><div class="book-list">`;
+  Object.entries(trees).forEach(([tree, list]) => {
+    h += `<div class="book-tree">${esc(tree)}</div>`;
+    list.forEach(([n, lvl, tag]) => {
+      const got = have.has(n.toLowerCase());
+      h += `<button class="spell ${got ? "got" : ""}" data-addspell="${esc(n)}" ${got ? 'disabled title="Already added"' : ""}><span>${esc(n)}</span>${tag === "new" ? `<em class="tag new">New</em>` : tag === "changed" ? `<em class="tag">Changed</em>` : tag === "talent" ? `<em class="tag tal">Talent</em>` : ""}<small>${lvl ? "L" + lvl : ""}</small></button>`;
+    });
+  });
+  if (!Object.keys(trees).length) h += `<p class="hint">No spells match.</p>`;
+  return h + `</div><p class="hint">Spell list from <a href="https://wowforever.wclbox.com/en" target="_blank" rel="noopener">wclbox's WoW Forever database</a>.</p></div>`;
+}
+function addSpell(cls, name) {
+  const zone = $("#newAbZone")?.value || null;
+  const a = { id: uid(), name, zone, cell: null, icon: "" };
+  const taken = id => cls.abilities.some(b => b.cell === id);
+  if (zone) a.cell = zoneCells(zone).find(id => !taken(id)) || null;
+  const keep = $(".book-list")?.scrollTop || 0;
+  cls.abilities.push(a); ui.addZone = zone || "";
+  save(); refreshClass();
+  const bl = $(".book-list"); if (bl) bl.scrollTop = keep;
+  toast(a.cell ? `${name} → ${slotLabel(a.cell)}` : `${name} added${zone ? " (no free button in that zone)" : ""}`);
 }
 function submitNewClass(id) {
   const kitName = $(`#${id}Kit`).value; const typed = $(`#${id}Name`).value.trim();
   const kit = CLASS_KITS[kitName];
   const name = typed || (kit ? kitName : "");
   if (!name) { toast("Pick a class or type a name."); return; }
-  const c = { id: uid(), name, color: kit ? kit.color : "#c7c3b8", abilities: kit ? kitAbilities(kitName) : [] };
+  const c = { id: uid(), name, base: kit ? kitName : guessBase(name), color: kit ? kit.color : "#c7c3b8", abilities: kit ? kitAbilities(kitName) : [] };
   // drop kit abilities into the first free button of their zone
   c.abilities.forEach(a => { if (a.zone) a.cell = zoneCells(a.zone).find(cell => !c.abilities.some(b => b.cell === cell)) || null; });
   state.classes.push(c); ui.cls = c.id; ui.addingClass = false; ui.tab = "abilities"; ui.planMode = "abilities"; save(); saveUI(); render();
@@ -943,6 +990,7 @@ function classSideHTML(cls) {
     <div class="row"><select id="newAbZone" aria-label="Zone" style="flex:1">${zopts(ui.addZone ?? state.zones[0]?.id ?? "")}</select><button class="primary" type="submit">Add</button></div>
     <div class="row"><input type="text" id="newAbIcon" placeholder="Icon (optional): wowhead icon name or image URL" aria-label="Icon" style="flex:1"></div>
   </form>
+  ${spellbookHTML(cls)}
   <div style="display:grid;gap:8px">
     <h2>Abilities by zone</h2>
     <div class="ab-groups" id="abGroups">`;
@@ -1101,6 +1149,7 @@ main.addEventListener("click", async e => {
   if (act === "hide-guide") { ui.guide = "hidden"; saveUI(); render(); return; }
   const planBtn = t.closest("[data-plan]");
   if (planBtn) { go(planBtn.dataset.plan); return; }
+  const sp = t.closest("[data-addspell]"); if (sp && curClass()) { addSpell(curClass(), sp.dataset.addspell); return; }
   if (act === "keep-default") { if (ui.barsDone && !await confirmBox("Switch to the default Blizzard UI?", "This replaces your bar shapes, positions and keybinds. Zones and abilities stay on the same bar buttons.", "Use default layout")) return; state.bars = PRESETS.default.bars(); state.binds = PRESETS.default.binds(); ui.barsDone = true; saveUI(); save(); ui.tab = "zones"; render(); toast("Using the default Blizzard UI layout."); return; }
   if (act === "edit-import") { openWowImport(); return; }
   if (act === "game-import") { openGameImport(); return; }
@@ -1221,6 +1270,7 @@ main.addEventListener("input", e => {
     return;
   }
   const cls = curClass(); if (!cls) return;
+  if (t.id === "bookQ") { ui.bookQ = t.value; const pos = t.selectionStart; $("#side").innerHTML = classSideHTML(cls); const nq = $("#bookQ"); nq.focus(); nq.setSelectionRange(pos, pos); return; }
   if (t.id === "className") { cls.name = t.value; save(); const o = $(`#classPick option[value="${cls.id}"]`); if (o) o.textContent = t.value; return; }
   if (t.id === "classColor") { cls.color = t.value; save(); return; }
   const ed = t.closest("[data-editor]");
@@ -1236,6 +1286,7 @@ main.addEventListener("change", e => {
   if (t.id === "chkLabels") { ui.labels = t.checked; saveUI(); if (ui.tab === "zones") refreshZoneGrid(); else if (curClass()) refreshClass(true); else render(); return; }
   if (t.id === "chkLabelsC") { ui.labelsClass = t.checked; saveUI(); refreshClass(true); return; }
   if (t.id === "firstClassKit" || t.id === "newClassKit") { const n = t.id.replace("Kit", "Name"); $("#" + n).placeholder = t.value && t.value !== "-" ? `${t.value} (or a spec name)` : "Name or spec, e.g. Ret Paladin"; return; }
+  if (t.id === "baseClass" && curClass()) { curClass().base = t.value || null; save(); refreshClass(); return; }
   if (t.id === "chkCaps") { state.endcaps = t.checked; save(); render(); return; }
   if (t.id === "presetSel") { ui.preset = t.value; $("#presetNote").textContent = PRESETS[t.value].note; return; }
   const br = t.closest("[data-bar]");

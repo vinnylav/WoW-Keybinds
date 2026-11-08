@@ -17,4 +17,6 @@ It is a single `index.html` with no build step. GitHub Pages serves it from the 
 
 ## Credits
 
+WoW Forever class spellbooks (`data/forever-spells.js`) were compiled from [wclbox's WoW Forever database](https://wowforever.wclbox.com/en) on 2026-11-08 (client build 1.60.1.x). Spell names were tidied where the site's translation differed from the in-game name.
+
 Frame and button art comes from [warcraftcn/ui](https://github.com/TheOrcDev/warcraftcn-ui) (MIT, see `assets/wc/LICENSE-warcraftcn.md`). World of Warcraft is a trademark of Blizzard Entertainment; this project is not affiliated with Blizzard.
