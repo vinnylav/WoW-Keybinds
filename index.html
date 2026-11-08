@@ -240,7 +240,7 @@ button.ghost:not(.cell) { border-image: none !important; border-color: transpare
 }
 .side { padding: 16px; }
 .ov-card { padding: 12px; }
-@media (min-width: 861px) { .side { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow-y: auto; } }
+@media (min-width: 861px) { .side { position: sticky; top: calc(var(--hdr-h, 76px) + 8px); max-height: calc(100vh - var(--hdr-h, 76px) - 20px); overflow-y: auto; } }
 .ov-card:hover { border-color: var(--accent); }
 .side h2, .guide h2, dialog h2 { padding-bottom: 6px; border-bottom: 1px solid rgba(226,178,76,.18); }
 input[type=text], select, textarea {
@@ -522,7 +522,6 @@ function loadLocal() {
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
-  setStatus("Saving…");
   saveTimer = setTimeout(() => {
     saveTimer = null;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); setStatus("Saved in this browser"); }
@@ -532,9 +531,11 @@ function save() {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 10";
+const BUILD = "Nov 8 · 11";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
+// Keep the sticky side panel just under the header, whatever height the header wraps to.
+new ResizeObserver(([e]) => document.documentElement.style.setProperty("--hdr-h", Math.round(e.target.offsetHeight) + "px")).observe($("header"));
 
 function normalize(s) {
   if (!s || !Array.isArray(s.bars) || !Array.isArray(s.zones)) throw new Error("That file doesn't look like a Keybind Atlas layout (it has no bars or categories).");
