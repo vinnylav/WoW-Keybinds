@@ -74,7 +74,16 @@ header {
 }
 .tab[aria-selected=true] { background: var(--panel-2); border-color: var(--line); color: var(--accent); }
 .tab .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-.hdr-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hdr-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+.icon-btn { font-size: 18px; line-height: 1; padding: 4px 8px; }
+.menu { position: relative; }
+.menu summary { list-style: none; cursor: pointer; padding: 6px 10px; border-radius: var(--r); color: var(--muted); font: 600 13px var(--f-fantasy); letter-spacing: .03em; user-select: none; }
+.menu summary::-webkit-details-marker { display: none; }
+.menu summary:hover, .menu[open] summary { color: var(--fg); background: rgba(255,255,255,.06); }
+.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px; display: grid; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.menu-pop button { text-align: left; width: 100%; padding: 8px 10px; }
+.menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.foot { margin: 24px 0 16px; font-size: 12px; color: var(--muted); opacity: .7; }
 .status { font-size: 12px; color: var(--muted); }
 
 main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 24px; padding-block: 20px; align-items: start; }
@@ -344,7 +353,6 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   .brand { font-size: 20px; }
   .tab { font-size: 14px; padding: 4px 8px; }
   .hdr-actions { gap: 4px; }
-  .hdr-actions .status { flex-basis: 100%; }
   .hdr-actions button { font-size: 12px; padding: 4px 8px; }
   .grid:not(.fit) { width: 100%; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); max-width: calc(var(--cols) * 54px); }
   .grid.has-caps { margin: 0 34px 6px; width: calc(100% - 68px); }
@@ -362,17 +370,23 @@ pre.macro { white-space: pre-wrap; word-break: break-all; background: #07080a; b
   <h1 class="brand">Keybind <span>Atlas</span> <em class="edition" title="Built for World of Warcraft: Forever">for WoW Forever</em></h1>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
   <div class="hdr-actions">
-    <span class="status" id="status"></span><span class="status" id="ver" style="opacity:.55"></span>
-    <button id="btnUndo" class="small ghost" title="Undo (Ctrl+Z)" disabled>Undo</button>
-    <button id="btnRedo" class="small ghost" title="Redo (Ctrl+Shift+Z)" hidden>Redo</button>
-    <button id="btnHelp" class="small ghost">How it works</button>
-    <button id="btnReset" class="small ghost danger">Start over</button>
-    <button id="btnShare" class="small" title="Open this plan on another device">Share link</button>
-    <button id="btnExport" class="small">Export JSON</button>
-    <button id="btnImport" class="small">Import JSON</button>
+    <button id="btnUndo" class="small ghost icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
+    <button id="btnRedo" class="small ghost icon-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" hidden>↷</button>
+    <button id="btnShare" class="small" title="Open this plan on another device">Share</button>
+    <details class="menu" id="hdrMenu">
+      <summary class="small ghost" aria-label="More">More ▾</summary>
+      <div class="menu-pop" role="menu">
+        <button id="btnHelp" class="ghost" role="menuitem">How it works</button>
+        <button id="btnExport" class="ghost" role="menuitem">Export JSON (backup)</button>
+        <button id="btnImport" class="ghost" role="menuitem">Import JSON</button>
+        <hr>
+        <button id="btnReset" class="ghost danger" role="menuitem">Start over</button>
+      </div>
+    </details>
   </div>
 </header>
 <main id="main"></main>
+<footer class="foot"><span class="status" id="status"></span> · <span id="ver"></span></footer>
 
 <dialog id="dlgImport">
   <h2>Import layout</h2>
@@ -585,7 +599,7 @@ function save(undoable = true) {
 window.addEventListener("pagehide", () => { if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} } });
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, cls: ui.cls, labels: ui.labels, map: ui.map, labelsClass: ui.labelsClass, guide: ui.guide, exported: ui.exported, barsDone: ui.barsDone, tour: ui.tour })); } catch (e) {} }
 function loadUI() { try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {} }
-const BUILD = "Nov 8 · 18";
+const BUILD = "Nov 8 · 19";
 function setStatus(t) { $("#status").textContent = t; }
 $("#ver").textContent = "Version " + BUILD;
 // Keep the sticky side panel just under the header, whatever height the header wraps to.
@@ -1948,6 +1962,8 @@ $("#btnExport").onclick = () => {
   toast("Exported keybind-atlas.json");
 };
 $("#btnHelp").onclick = () => $("#dlgHelp").showModal();
+$("#hdrMenu").addEventListener("click", e => { if (e.target.closest(".menu-pop button")) $("#hdrMenu").open = false; });
+document.addEventListener("click", e => { if (!e.target.closest("#hdrMenu")) $("#hdrMenu").open = false; });
 $("#btnUndo").onclick = undo; $("#btnRedo").onclick = redo;
 document.addEventListener("keydown", e => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== "z" && e.key.toLowerCase() !== "y") return;
